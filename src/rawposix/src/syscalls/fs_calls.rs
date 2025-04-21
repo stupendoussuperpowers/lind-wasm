@@ -1171,6 +1171,55 @@ pub fn clock_gettime_syscall(
     ret
 }
 
+/// Reference to Linux: https://man7.org/linux/man-pages/man2/futex.2.html
+///
+/// The Linux `futex()` syscall provides a mechanism for fast user-space locking. It allows a process or thread
+/// to wait for or wake another process or thread on a shared memory location without invoking heavy kernel-side
+/// synchronization primitives unless contention arises. This implementation wraps the futex syscall, allowing
+/// direct invocation with the relevant arguments passed from the current cage context.
+///
+/// Input:
+///     - cageid: current cageid
+///     - uaddr_arg: pointer to the futex word in user memory
+///     - futex_op_arg: operation code indicating futex command type
+///     - val_arg: value expected at uaddr or the number of threads to wake
+///     - val2_arg: timeout or other auxiliary parameter depending on operation
+///     - uaddr2_arg: second address used for requeueing operations
+///     - val3_arg: additional value for some futex operations
+///
+/// Return:
+///     - On success: 0 or number of woken threads depending on futex operation
+///     - On failure: a negative errno value indicating the syscall error
+pub fn futex_syscall(
+    cageid: u64,
+    uaddr_arg: u64,
+    uaddr_cageid: u64,
+    futex_op_arg: u64,
+    futex_op_cageid: u64,
+    val_arg: u64,
+    val_cageid: u64,
+    val2_arg: u64,
+    val2_cageid: u64,
+    uaddr2_arg: u64,
+    uaddr2_cageid: u64,
+    val3_arg: u64,
+    val3_cageid: u64,
+) -> i32{
+    let uaddr = sc_convert_uaddr_to_host(uaddr_arg, uaddr_cageid, cageid);
+    let futex_op = sc_convert_sysarg_to_u32(futex_op_arg, futex_op_cageid, cageid);
+    let val = sc_convert_sysarg_to_u32(val_arg, val_cageid, cageid);
+    let val2 = sc_convert_sysarg_to_u32(val2_arg, val2_cageid, cageid);
+    let uaddr2 = sc_convert_sysarg_to_u32(uaddr2_arg, uaddr2_cageid, cageid);
+    let val3 = sc_convert_sysarg_to_u32(val3_arg, val3_cageid, cageid);
+
+    let ret = unsafe { syscall(SYS_futex, uaddr, futex_op, val, val2, uaddr2, val3)  as i32 };
+    if ret < 0 {
+        let errno = get_errno();
+        return handle_errno(errno, "futex");
+    }
+    ret
+}
+
 pub fn nanosleep_time64_syscall(
     cageid: u64, 
     clockid_arg: u64,
