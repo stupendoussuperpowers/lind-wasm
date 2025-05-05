@@ -3,6 +3,7 @@ Cageid: 1
 [3i|make_syscall] syscallnum: 21, self_cageid: 1, target_cageid: 1
 [mmap_syscall] selfcageid: 1, FD Cageid: 1
 [mmap_inner] cageid: 1, vfd: -1
+[mmap_syscall] return: 0, selfcageid: 1
 [3i|threei_test_func] Callback replaced with grateid 1
 [3i|threei_test_func] Added grate entry func to global table
 [wasmtime|common] callnum: 191, call_name:7514
@@ -43,6 +44,7 @@ Cageid: 2
 [wasmtime|common] callnum: 172, call_name:3259
 [3i|make_syscall] syscallnum: 172, self_cageid: 1, target_cageid: 1
 [wasmtime|common] callnum: 171, ret:0
+[mem_helper] baseaddr: 125059112894464, arg: 190188
 [wasmtime|common] callnum: 31, call_name:9332
 [3i|make_syscall] syscallnum: 31, self_cageid: 2, target_cageid: 2
 [wasmtime|common] callnum: 31, ret:2
@@ -55,12 +57,13 @@ Cageid: 2
 [3i|make_syscall] syscallnum: 21, self_cageid: 2, target_cageid: 2
 [mmap_syscall] selfcageid: 2, FD Cageid: 2
 [mmap_inner] cageid: 2, vfd: -1
+[mmap_syscall] return: 0, selfcageid: 2
 [3i|threei_test_func] Callback replaced with grateid 2
 [3i|threei_test_func] Added grate entry func to global table
-[wasmtime|common] callnum: 191, call_name:7384
+[wasmtime|common] callnum: 191, call_name:7401
 [3i|make_syscall] syscallnum: 191, self_cageid: 2, target_cageid: 2
 [wasmtime|common] callnum: 191, ret:-14
-[wasmtime|common] callnum: 176, call_name:5974
+[wasmtime|common] callnum: 176, call_name:5976
 [3i|make_syscall] syscallnum: 176, self_cageid: 2, target_cageid: 2
 [sbrk_syscall] cageid: 2
 [sbrk_syscall] cp 1
@@ -71,7 +74,7 @@ Cageid: 2
 [sbrk_syscall] cp 5
 [mmap_inner] cageid: 2, vfd: -1
 [wasmtime|common] callnum: 176, ret:196608
-[wasmtime|common] callnum: 176, call_name:5974
+[wasmtime|common] callnum: 176, call_name:5976
 [3i|make_syscall] syscallnum: 176, self_cageid: 2, target_cageid: 2
 [sbrk_syscall] cageid: 2
 [sbrk_syscall] cp 1
@@ -82,39 +85,40 @@ Cageid: 2
 [sbrk_syscall] cp 5
 [mmap_inner] cageid: 2, vfd: -1
 [wasmtime|common] callnum: 176, ret:331776
-[wasmtime|common] callnum: 50, call_name:9164
-[3i|make_syscall] syscallnum: 50, self_cageid: 2, target_cageid: 2
-[3i|make_syscall] grate call -- selfcageid: 2, syscallnum: 50, callindex: 0, grateid: 1
+[wasmtime|common] callnum: 4, call_name:5989
+[3i|make_syscall] syscallnum: 4, self_cageid: 2, target_cageid: 2
+[3i|make_syscall] grate call -- selfcageid: 2, syscallnum: 4, callindex: 0, grateid: 1
 [3i|call_grate_func] grateid (aka index): 1
+[mem_helper] baseaddr: 125039315779584, arg: 5300
+[wasmtime] in cage "/hello" with cageid 2
+[3i|make_syscall] syscallnum: 21, self_cageid: 1, target_cageid: 1
+[mmap_syscall] selfcageid: 1, FD Cageid: 1
+[mmap_inner] cageid: 1, vfd: -1
+[mmap_syscall] return: 4294959104, selfcageid: 1
+[wasmtime] virtual addr in grate 4294959104 with grateid 1
+[mem_helper] baseaddr: 125059112894464, arg: 4294959104
+[wasmtime]
+[wasmtime] in grate "/hello" with grateid 1
 [wasmtime|common] callnum: 13, call_name:7014
 [3i|make_syscall] syscallnum: 13, self_cageid: 1, target_cageid: 1
-[grate] val=11 | memory addr=0x1d704
-[wasmtime|common] callnum: 13, ret:37
-[wasmtime|common] callnum: 50, ret:11
-[wasmtime|common] callnum: 13, call_name:6898
+[mem_helper] baseaddr: 125059112894464, arg: 189772
+[grate] str=/hello | memory addr=0x1d704
+[wasmtime|common] callnum: 13, ret:41
+[wasmtime|common] callnum: 4, ret:10
+[wasmtime|common] callnum: 13, call_name:6915
 [3i|make_syscall] syscallnum: 13, self_cageid: 2, target_cageid: 2
-[Cage | getuid] getuid ret = 11
+[mem_helper] baseaddr: 125039315779584, arg: 188476
+[Cage | unlink] unlink ret = 10
 [wasmtime|common] callnum: 13, ret:32
-[wasmtime|common] callnum: 50, call_name:9164
-[3i|make_syscall] syscallnum: 50, self_cageid: 2, target_cageid: 2
-[3i|make_syscall] grate call -- selfcageid: 2, syscallnum: 50, callindex: 0, grateid: 1
-[3i|call_grate_func] grateid (aka index): 1
-[wasmtime|common] callnum: 13, call_name:7014
-[3i|make_syscall] syscallnum: 13, self_cageid: 1, target_cageid: 1
-[grate] val=12 | memory addr=0x1d704
-[wasmtime|common] callnum: 13, ret:37
-[wasmtime|common] callnum: 50, ret:12
-[wasmtime|common] callnum: 13, call_name:6898
-[3i|make_syscall] syscallnum: 13, self_cageid: 2, target_cageid: 2
-[Cage | getuid2] getuid ret = 12
-[wasmtime|common] callnum: 13, ret:33
 [3i|make_syscall] syscallnum: 30, self_cageid: 2, target_cageid: 2
 [wasmtime|common] callnum: 172, ret:2
 [wasmtime|common] callnum: 13, call_name:7014
 [3i|make_syscall] syscallnum: 13, self_cageid: 1, target_cageid: 1
+[mem_helper] baseaddr: 125059112894464, arg: 190012
 [Grate | getuid] terminated, status: 0
 [wasmtime|common] callnum: 13, ret:39
 [wasmtime|common] callnum: 172, call_name:3259
 [3i|make_syscall] syscallnum: 172, self_cageid: 1, target_cageid: 1
+[mem_helper] baseaddr: 125059112894464, arg: 190188
 [wasmtime|common] callnum: 172, ret:-10
 [3i|make_syscall] syscallnum: 30, self_cageid: 1, target_cageid: 1

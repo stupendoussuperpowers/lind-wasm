@@ -428,6 +428,24 @@ pub fn dup2_syscall(
     
 }
 
+pub fn unlink_syscall(
+    cageid: u64,
+    path_arg: u64,
+    path_arg_cageid: u64,
+    arg2: u64,
+    arg2_cageid: u64,
+    arg3: u64,
+    arg3_cageid: u64,
+    arg4: u64,
+    arg4_cageid: u64,
+    arg5: u64,
+    arg5_cageid: u64,
+    arg6: u64,
+    arg6_cageid: u64,
+) -> i32 {
+    return 0;
+}
+
 pub fn stat_syscall(
     cageid: u64,
     path_arg: u64,
@@ -728,6 +746,7 @@ pub fn mmap_syscall(
         }
     }
 
+    println!("[mmap_syscall] return: {:?}, selfcageid: {:?}", useraddr, cageid);
     useraddr as i32
 }
 

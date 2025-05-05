@@ -20,9 +20,11 @@ int UID_GRATE_VAL;
 
 // Function ptr and signatures of this grate
 typedef int (*func_ptr_t)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
-int getuid_grate(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+// int getuid_grate(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int unlink_grate(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
 
-func_ptr_t func_array[1] = {getuid_grate};
+// func_ptr_t func_array[1] = {getuid_grate};
+func_ptr_t func_array[1] = {unlink_grate};
 
 // Dispatcher function
 int pass_fptr_to_wt(uint64_t index, uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg2, uint64_t arg2cage, uint64_t arg3, uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage, uint64_t arg5, uint64_t arg5cage, uint64_t arg6, uint64_t arg6cage) {
@@ -36,14 +38,14 @@ int pass_fptr_to_wt(uint64_t index, uint64_t cageid, uint64_t arg1, uint64_t arg
 }
 
 // Grate function implementation
-int getuid_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg2, uint64_t arg2cage, uint64_t arg3, uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage, uint64_t arg5, uint64_t arg5cage, uint64_t arg6, uint64_t arg6cage) {
-    // val++;
-    // (*val)++;
-    // printf("[grate] val=%d | memory addr=%p\n", *val, (void*)val);
-    // return *val;
-    
-    UID_GRATE_VAL++;
-    printf("[grate] val=%d | memory addr=%p\n", UID_GRATE_VAL, (void*)&UID_GRATE_VAL);
+// int getuid_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg2, uint64_t arg2cage, uint64_t arg3, uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage, uint64_t arg5, uint64_t arg5cage, uint64_t arg6, uint64_t arg6cage) {
+//     UID_GRATE_VAL++;
+//     printf("[grate] val=%d | memory addr=%p\n", UID_GRATE_VAL, (void*)&UID_GRATE_VAL);
+//     return UID_GRATE_VAL;
+// }
+
+int unlink_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg2, uint64_t arg2cage, uint64_t arg3, uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage, uint64_t arg5, uint64_t arg5cage, uint64_t arg6, uint64_t arg6cage) {    
+    printf("[grate] str=%s | memory addr=%p\n", (char*)arg1, (void*)&UID_GRATE_VAL);
     return UID_GRATE_VAL;
 }
 
@@ -77,7 +79,8 @@ int main(int argc, char *argv[]) {
                 int cageid = getpid();
                 // Set the getuid (syscallnum=50) of this cage to call this grate function getuid_grate (func index=0)
                 // Syntax of register_handler: <targetcage, targetcallnum, handlefunc_index_in_this_grate, this_grate_id>
-                int ret = register_handler(cageid, 50, 0, grateid);
+                // int ret = register_handler(cageid, 50, 0, grateid);
+                int ret = register_handler(cageid, 4, 0, grateid);
             }
 
             if ( execv(argv[i], &argv[i]) == -1) {

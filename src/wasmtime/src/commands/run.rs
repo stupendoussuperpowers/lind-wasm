@@ -8,13 +8,14 @@
 use crate::common::{Profile, RunCommon, RunTarget};
 use anyhow::{anyhow, bail, Context as _, Error, Result};
 use clap::Parser;
+use sysdefs::constants::fs_const::{MAP_ANONYMOUS, MAP_FIXED, MAP_PRIVATE, PROT_READ, PROT_WRITE};
 // use sysdefs::constants::fs_const::{MAP_ANONYMOUS, MAP_FIXED, MAP_PRIVATE, PAGESHIFT, PROT_READ, PROT_WRITE};
 use threei::threei::{make_syscall, threei_test_func};
 use wasmtime::vm::InstanceHandle;
 // use rawposix::{lindrustinit, lindrustfinalize};
 use wasmtime_lind_multi_process::{LindCtx, LindHost};
 use wasmtime_lind_common::LindCommonCtx;
-use wasmtime_lind_utils::lind_syscall_numbers::EXIT_SYSCALL;
+use wasmtime_lind_utils::lind_syscall_numbers::{EXIT_SYSCALL, MMAP_SYSCALL};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicU64;
@@ -23,6 +24,9 @@ use std::thread;
 use wasi_common::sync::{ambient_authority, Dir, TcpListener, WasiCtxBuilder};
 use wasmtime::{AsContext, AsContextMut, Caller, Engine, Extern, Func, InstantiateType, Module, Store, StoreLimits, Val, ValType, Instance};
 use wasmtime_wasi::WasiView;
+
+use typemap::syscall_conv::*;
+use std::ptr;
 
 use once_cell::sync::Lazy;
 
@@ -633,6 +637,49 @@ impl RunCommand {
                     let ctx = grate_handler.vmctx();
                     unsafe {
                         Caller::with(ctx, |mut caller: Caller<'_, Host>| {
+                            // use typemap lib to extract the content in the string 
+                            let path_content = sc_convert_path(arg1, arg1cageid, cageid);
+                            println!("[wasmtime] in cage {:?} with cageid {}", path_content, cageid);
+                            // increase the linear memory according to the str.len
+                            let len = path_content.len();
+                            let virt_addr = make_syscall(
+                                current_pid,
+                                MMAP_SYSCALL,
+                                current_pid,
+                                0, // let sys pick addr 
+                                current_pid,
+                                len as u64,
+                                current_pid,
+                                (PROT_READ | PROT_WRITE) as u64,
+                                current_pid,
+                                (MAP_PRIVATE | MAP_ANONYMOUS) as u64,
+                                current_pid,
+                                (0 - 1) as u64,
+                                current_pid,
+                                0,
+                                current_pid,
+                            ) as u32;
+
+                            println!("[wasmtime] virtual addr in grate {:?} with grateid {}", virt_addr, current_pid);
+                            
+                            let host_addr = sc_convert_uaddr_to_host(virt_addr as u64, current_pid, current_pid);
+                            // cp str to linear memory
+                            ptr::copy_nonoverlapping(
+                                path_content.as_ptr(), 
+                                host_addr as *mut u8, 
+                                len,
+                            );
+
+                            println!("[wasmtime]");
+                            // [TEST] - print out string
+                            if let Ok(tmp_path_test) = std::ffi::CStr::from_ptr(host_addr as *const i8).to_str() {
+                                println!("[wasmtime] in grate {:?} with grateid {}", tmp_path_test, current_pid);
+                            } else {
+                                println!("Invalid UTF-8 or pointer");
+                            }
+                            
+                            // pass the linear memory addr to the function
+
                             let Caller { mut store, caller: instance } = caller;
                             // let gstore = &mut caller.store;
                             
@@ -643,12 +690,19 @@ impl RunCommand {
                             // println!("[wasmtime|run] get 'pass_fptr_to_wt'");
                             let grate_entry_point = match grate_entry_func.typed::<(u64, u64, u64, u64, u64, u64, u64, u64, u64, u64, u64, u64, u64, u64), i32>(&mut store) {
                                 Ok(typed_func) => typed_func,
-                                Err(e) => {
+                                Err(_e) => {
                                     // println!("[wasmtime|run] Failed to find function 'pass_fptr_to_wt': {:?}", e);
                                     return -1; 
                                 }
                             };
-                            let result = match grate_entry_point.call(&mut store, (index, cageid, arg1, arg1cageid, arg2, arg2cageid, arg3, arg3cageid, arg4, arg4cageid, arg5, arg5cageid, arg6, arg6cageid)) {
+                            // let result = match grate_entry_point.call(&mut store, (index, cageid, arg1, arg1cageid, arg2, arg2cageid, arg3, arg3cageid, arg4, arg4cageid, arg5, arg5cageid, arg6, arg6cageid)) {
+                            //     Ok(value) => value,
+                            //     Err(e) => {
+                            //         eprintln!("Error calling pass_fptr_to_wt: {:?}", e);
+                            //         return -1; 
+                            //     }
+                            // };
+                            let result = match grate_entry_point.call(&mut store, (index, cageid, virt_addr as u64, arg1cageid, arg2, arg2cageid, arg3, arg3cageid, arg4, arg4cageid, arg5, arg5cageid, arg6, arg6cageid)) {
                                 Ok(value) => value,
                                 Err(e) => {
                                     eprintln!("Error calling pass_fptr_to_wt: {:?}", e);

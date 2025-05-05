@@ -93,6 +93,46 @@ pub fn sc_convert_path_to_host(
     }
 }
 
+pub fn sc_convert_path(
+    path_arg: u64,
+    path_arg_cageid: u64,
+    cageid: u64,
+) -> String {
+    #[cfg(feature = "secure")]
+    {
+        if !validate_cageid(path_arg_cageid, cageid) {
+            panic!("Invalide Cage ID");
+        }
+    }
+    let cage = get_cage(path_arg_cageid).unwrap();
+    let addr = translate_vmmap_addr(&cage, path_arg).unwrap();
+    let path = match get_cstr(addr) {
+        Ok(path) => path,
+        Err(e) => panic!("{:?}", e),
+    };
+    // We will create a new variable in host process to handle the path value
+    let relpath = normpath(convpath(path), path_arg_cageid);
+    let relative_path = relpath.to_str().unwrap();
+    relative_path.to_string()
+}
+
+/// This function translates 64 bits uadd from the WASM context
+/// into the corresponding host address value. Unlike the previous two functions, it returns
+/// the translated address as a raw `u64` rather than a pointer.
+///
+/// Input:
+///     - uaddr_arg: the original 64-bit address from the WASM space
+///     - uaddr_arg_cageid: the cage ID that owns the address
+///     - cageid: the currently executing cage ID
+///
+/// Output:
+///     - Returns the translated 64-bit address in host space as a u64.
+pub fn sc_convert_uaddr_to_host(uaddr_arg: u64, uaddr_arg_cageid: u64, cageid: u64) -> u64{
+    let cage = get_cage(uaddr_arg_cageid).unwrap();
+    let uaddr = translate_vmmap_addr(&cage, uaddr_arg).unwrap();
+    return uaddr;
+}
+
 pub unsafe fn charstar_to_ruststr<'a>(cstr: *const i8) -> Result<&'a str, Utf8Error> {
     std::ffi::CStr::from_ptr(cstr as *const _).to_str() //returns a result to be unwrapped later
 }

@@ -202,5 +202,6 @@ pub fn check_addr(cageid: u64, arg: u64, length: usize, prot: i32) -> Result<boo
 pub fn translate_vmmap_addr(cage: &Cage, arg: u64) -> Result<u64, Errno> {
     // Get read lock on virtual memory map
     let vmmap = cage.vmmap.read();
+    println!("[mem_helper] baseaddr: {:?}, arg: {:?}", vmmap.base_address.unwrap() as u64, arg);
     Ok(vmmap.base_address.unwrap() as u64 + arg)
 }
