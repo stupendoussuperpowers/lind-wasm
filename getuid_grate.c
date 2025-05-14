@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <register_handler.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -19,9 +20,25 @@
 int UID_GRATE_VAL;
 
 // Function ptr and signatures of this grate
-typedef int (*func_ptr_t)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+// typedef int (*func_ptr_t)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+typedef int (*func_ptr_t)(
+    uint64_t cageid, 
+    uint64_t arg1, uint64_t arg1cage,
+    uint64_t arg2, uint64_t arg2cage,
+    uint64_t arg3, uint64_t arg3cage,
+    uint64_t arg4, uint64_t arg4cage,
+    uint64_t arg5, uint64_t arg5cage,
+    uint64_t arg6, uint64_t arg6cage
+);
 // int getuid_grate(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
-int unlink_grate(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+// int unlink_grate(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+int unlink_grate(uint64_t cageid, 
+    uint64_t arg1, uint64_t arg1cage,
+    uint64_t arg2, uint64_t arg2cage,
+    uint64_t arg3, uint64_t arg3cage,
+    uint64_t arg4, uint64_t arg4cage,
+    uint64_t arg5, uint64_t arg5cage,
+    uint64_t arg6, uint64_t arg6cage);
 
 // func_ptr_t func_array[1] = {getuid_grate};
 func_ptr_t func_array[1] = {unlink_grate};
@@ -80,7 +97,13 @@ int main(int argc, char *argv[]) {
                 // Set the getuid (syscallnum=50) of this cage to call this grate function getuid_grate (func index=0)
                 // Syntax of register_handler: <targetcage, targetcallnum, handlefunc_index_in_this_grate, this_grate_id>
                 // int ret = register_handler(cageid, 50, 0, grateid);
-                int ret = register_handler(cageid, 4, 0, grateid);
+                int ret = register_handler(cageid, 4, 0, grateid, 
+                    1, 
+                    0, 
+                    0, 
+                    0, 
+                    0, 
+                    0);
             }
 
             if ( execv(argv[i], &argv[i]) == -1) {

@@ -632,11 +632,20 @@ impl RunCommand {
                     insert_ctx(current_pid as usize, grate_instancehandler.clone());
                 }
                 
-                let res = threei_test_func(current_pid, Box::new(move |index: u64, cageid: u64, arg1: u64, arg1cageid: u64, arg2: u64, arg2cageid: u64, arg3: u64, arg3cageid: u64, arg4: u64, arg4cageid: u64, arg5: u64, arg5cageid: u64, arg6: u64, arg6cageid: u64| -> i32 {
+                let res = threei_test_func(current_pid, Box::new(move |index: u64, cageid: u64, arg1: u64, arg1cageid: u64, arg2: u64, arg2cageid: u64, arg3: u64, arg3cageid: u64, arg4: u64, arg4cageid: u64, arg5: u64, arg5cageid: u64, arg6: u64, arg6cageid: u64, arg1_datatype: u64, 
+                    arg2_datatype: u64, 
+                    arg3_datatype: u64, 
+                    arg4_datatype: u64, 
+                    arg5_datatype: u64, 
+                    arg6_datatype: u64,| -> i32 {
                     let grate_handler = get_ctx(current_pid as usize);
                     let ctx = grate_handler.vmctx();
                     unsafe {
                         Caller::with(ctx, |mut caller: Caller<'_, Host>| {
+
+                            // TODO:
+                            // Use copy_data_between_cages function in 3i
+
                             // use typemap lib to extract the content in the string 
                             let path_content = sc_convert_path(arg1, arg1cageid, cageid);
                             println!("[wasmtime] in cage {:?} with cageid {}", path_content, cageid);
@@ -695,13 +704,7 @@ impl RunCommand {
                                     return -1; 
                                 }
                             };
-                            // let result = match grate_entry_point.call(&mut store, (index, cageid, arg1, arg1cageid, arg2, arg2cageid, arg3, arg3cageid, arg4, arg4cageid, arg5, arg5cageid, arg6, arg6cageid)) {
-                            //     Ok(value) => value,
-                            //     Err(e) => {
-                            //         eprintln!("Error calling pass_fptr_to_wt: {:?}", e);
-                            //         return -1; 
-                            //     }
-                            // };
+                            
                             let result = match grate_entry_point.call(&mut store, (index, cageid, virt_addr as u64, arg1cageid, arg2, arg2cageid, arg3, arg3cageid, arg4, arg4cageid, arg5, arg5cageid, arg6, arg6cageid)) {
                                 Ok(value) => value,
                                 Err(e) => {
