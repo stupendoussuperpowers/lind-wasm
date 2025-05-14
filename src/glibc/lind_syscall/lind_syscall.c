@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <stdint.h> // For uint64_t definition
 /* Indirect system call.  Linux generic implementation.
    Copyright (C) 1997-2024 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
@@ -63,8 +64,7 @@ int __imported_wasi_snapshot_preview1_register_syscall(uint64_t targetcage,
     uint64_t arg3_datatype, 
     uint64_t arg4_datatype, 
     uint64_t arg5_datatype, 
-    uint64_t arg6_datatype, 
-) __attribute__((
+    uint64_t arg6_datatype) __attribute__((
     __import_module__("lind"),
     __import_name__("register-syscall")
 ));
@@ -85,8 +85,7 @@ int lind_register_syscall (uint64_t targetcage,
     uint64_t arg3_datatype, 
     uint64_t arg4_datatype, 
     uint64_t arg5_datatype, 
-    uint64_t arg6_datatype, 
-)
+    uint64_t arg6_datatype)
 {
     int ret = __imported_wasi_snapshot_preview1_register_syscall(targetcage, targetcallnum, handlefunc_index_in_this_grate, this_grate_id, arg1_datatype, arg2_datatype, arg3_datatype, arg4_datatype, arg5_datatype, arg6_datatype);
     // handle the errno

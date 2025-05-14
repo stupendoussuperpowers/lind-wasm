@@ -24,6 +24,7 @@ object_files=$(find "$src_dir" -type f -name "*.o" ! \( -name "stamp.o" -o -name
 
 # Add the lind_syscall.o file to the list of object files
 object_files="$object_files $lind_syscall_path $register_handler_path"
+# object_files="$object_files $lind_syscall_path"
 
 # Check if object files were found
 if [ -z "$object_files" ]; then
@@ -41,7 +42,7 @@ ${CLANG:=/home/lind-wasm/clang+llvm-16.0.4-x86_64-linux-gnu-ubuntu-22.04}/bin/ll
 # Check if llvm-ar succeeded
 if [ $? -eq 0 ]; then
   echo "Successfully created $output_archive with the following .o files:"
-  echo "$object_files"
+  # echo "$object_files"
 else
   echo "Failed to create the archive."
   exit 1
@@ -54,4 +55,4 @@ cp -r "$include_source_dir"/* "$sysroot_dir/include/wasm32-wasi/"
 cp "$crt1_source_path" "$sysroot_dir/lib/wasm32-wasi/"
 
 # Copy register_handler related definition to
-cp src/glibc/lind_syscall/register_handler.h src/glibc/sys
+cp "$PWD/lind_syscall/register_handler.h" "$sysroot_dir/include/wasm32-wasi/"
