@@ -3,21 +3,9 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <register_handler.h>
+#include <cp_data_between_cages.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
-/*
-*   Because in wasmtime, it will continue to execute until the main function ends after finding the entry point of main function. 
-*   Due to the limitation of lifetime on `Store` in rust language features, it is very cumbersome to insert an interrupt mechanism 
-*   during execution (I haven't found a way so far), so I put the syscall interception mechanism before wasmtime executes the main 
-*   function. But this will cause a problem: Every time we call the intercepted function (`getuid` in this case) through 3i, the 
-*   context info (stored in `Store` in wasmtime) accessed by 3i is before main runs, which makes it impossible to set the uid 
-*   constant in grate and then get it through 3i by using the method of `./grateuid 10 cageuid`. (Because the main function has 
-*   not started to execute when 3i accesses it, the constant accessed is set after compilation, while setting it through command 
-*   line requires executing main function and then modifying context info). So I let the user modify this constant through the 
-*   clang compilation flag `-DUID_GRATE_VAL=$val`
-*/
-int UID_GRATE_VAL;
 
 // Function ptr and signatures of this grate
 // typedef int (*func_ptr_t)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
@@ -42,6 +30,7 @@ int unlink_grate(uint64_t cageid,
 
 // func_ptr_t func_array[1] = {getuid_grate};
 func_ptr_t func_array[1] = {unlink_grate};
+#define MAX_STRING_LENGTH 4096 // Define a maximum length for strings according to the Linux standard
 
 // Dispatcher function
 int pass_fptr_to_wt(uint64_t index, uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg2, uint64_t arg2cage, uint64_t arg3, uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage, uint64_t arg5, uint64_t arg5cage, uint64_t arg6, uint64_t arg6cage) {
@@ -54,21 +43,24 @@ int pass_fptr_to_wt(uint64_t index, uint64_t cageid, uint64_t arg1, uint64_t arg
     return func_array[index](cageid, arg1, arg1cage, arg2, arg2cage, arg3, arg3cage, arg4, arg4cage, arg5, arg5cage, arg6, arg6cage);
 }
 
-// Grate function implementation
-// int getuid_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg2, uint64_t arg2cage, uint64_t arg3, uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage, uint64_t arg5, uint64_t arg5cage, uint64_t arg6, uint64_t arg6cage) {
-//     UID_GRATE_VAL++;
-//     printf("[grate] val=%d | memory addr=%p\n", UID_GRATE_VAL, (void*)&UID_GRATE_VAL);
-//     return UID_GRATE_VAL;
-// }
-
 int unlink_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg2, uint64_t arg2cage, uint64_t arg3, uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage, uint64_t arg5, uint64_t arg5cage, uint64_t arg6, uint64_t arg6cage) {    
-    printf("[grate] str=%s | memory addr=%p\n", (char*)arg1, (void*)&UID_GRATE_VAL);
-    return UID_GRATE_VAL;
+    int thiscage = getpid();
+    char* destaddr = malloc(MAX_STRING_LENGTH);
+    if (destaddr == NULL) {
+        perror("malloc failed");
+        exit(EXIT_FAILURE);
+    }
+
+    cp_data_between_cages(thiscage, arg1cage, arg1, arg1cage, (uint64_t)destaddr, thiscage, MAX_STRING_LENGTH, 1);
+    // printf("[grate] str=%s | memory addr=%p\n", (char*)destaddr, (void*)&UID_GRATE_VAL);
+    printf("[grate] str=%s\n", (char*)destaddr);
+    free(destaddr);
+    return 0;
 }
 
 // Main function will always be same in all grates
 int main(int argc, char *argv[]) {
-    UID_GRATE_VAL = 10;
+    // UID_GRATE_VAL = 10;
     // Should be at least two inputs (at least one grate file and one cage file)
     if (argc < 2) {
         fprintf(stderr, "Usage: %s <cage_file> <grate_file> <cage_file> [...]\n", argv[0]);
@@ -97,13 +89,7 @@ int main(int argc, char *argv[]) {
                 // Set the getuid (syscallnum=50) of this cage to call this grate function getuid_grate (func index=0)
                 // Syntax of register_handler: <targetcage, targetcallnum, handlefunc_index_in_this_grate, this_grate_id>
                 // int ret = register_handler(cageid, 50, 0, grateid);
-                int ret = register_handler(cageid, 4, 0, grateid, 
-                    1, 
-                    0, 
-                    0, 
-                    0, 
-                    0, 
-                    0);
+                int ret = register_handler(cageid, 4, 0, grateid);
             }
 
             if ( execv(argv[i], &argv[i]) == -1) {

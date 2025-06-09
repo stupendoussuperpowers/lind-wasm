@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use anyhow::Result;
-use threei::threei::{make_syscall, register_handler};
+use threei::threei::{copy_data_between_cages, make_syscall, register_handler};
 use wasmtime_lind_multi_process::{get_memory_base, LindHost, clone_constants::CloneArgStruct};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -164,8 +164,19 @@ pub fn add_to_linker<T: LindHost<T, U> + Clone + Send + 'static + std::marker::S
     linker.func_wrap(
         "lind",
         "register-syscall",
-        move |targetcage: u64, targetcallnum: u64, handlefunc_index_in_this_grate: u64, this_grate_id: u64, arg1_datatype: u64, arg2_datatype: u64, arg3_datatype: u64, arg4_datatype: u64, arg5_datatype: u64, arg6_datatype: u64| -> i32 {
-            register_handler(targetcage, targetcallnum, handlefunc_index_in_this_grate, this_grate_id, arg1_datatype, arg2_datatype, arg3_datatype, arg4_datatype, arg5_datatype, arg6_datatype)
+        move |targetcage: u64, targetcallnum: u64, handlefunc_index_in_this_grate: u64, this_grate_id: u64| -> i32 {
+            register_handler(0, targetcage, targetcallnum, 0, handlefunc_index_in_this_grate, this_grate_id, 0, 0, 0, 0, 0, 0, 0, 0)
+        },
+    )?;
+
+    // attach copy_data_between_cages to wasmtime
+    linker.func_wrap(
+        "lind",
+        "cp-data-syscall",
+        move |thiscage: u64, targetcage: u64, srcaddr: u64, srccage: u64, destaddr: u64, destcage: u64, len: u64, copytype: u64| -> i32 {
+            println!("[wasmtime|common] copy_data_between_cages: thiscage: {}, targetcage: {}, srcaddr: {}, srccage: {}, destaddr: {}, destcage: {}, len: {}, copytype: {}", 
+                thiscage, targetcage, srcaddr, srccage, destaddr, destcage, len, copytype);
+            copy_data_between_cages(thiscage, targetcage, srcaddr, srccage, destaddr, destcage, len, 0, copytype, 0, 0, 0, 0, 0) as i32
         },
     )?;
 

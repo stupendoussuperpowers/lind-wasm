@@ -4,7 +4,15 @@ use core::panic;
 use dashmap::DashSet;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
+use std::ptr;
+use cage::memory::mem_helper::check_addr;
+use sysdefs::constants::threei_const;
+use sysdefs::constants::{PROT_READ, PROT_WRITE, MAP_ANONYMOUS, MAP_PRIVATE}; // Used in `copy_data_between_cages`
+use typemap::syscall_conv::sc_convert_uaddr_to_host;
+
+const EXIT_SYSCALL: u64 = 30; // Develop purpose only
+const MMAP_SYSCALL: u64 = 21; // mmap syscall number
 
 /// ------------------------------------------------------------
 /// `call_back` function is the dispatcher function for grate, so it's per grate bias (each grate will have same callback function, and 
@@ -19,8 +27,7 @@ use std::sync::{Arc, Mutex};
 pub fn threei_test_func(grateid: u64, mut callback: Box<dyn FnMut(
     u64, u64, u64, u64, u64,
     u64, u64, u64, u64, u64,
-    u64, u64, u64, u64, u64,
-    u64, u64, u64, u64, u64,
+    u64, u64, u64, u64
 ) -> i32 + 'static>) -> i32 {
     let index = grateid as usize;
     unsafe {
@@ -41,14 +48,6 @@ pub fn threei_test_func(grateid: u64, mut callback: Box<dyn FnMut(
     println!("[3i|threei_test_func] Added grate entry func to global table");
     0
 }
-/// ------------------------------------------------------------
-
-// use cage::cage::get_cage;
-// use cage::memory::mem_helper::*;
-use sysdefs::constants::threei_const;
-// use sysdefs::constants::{PROT_READ, PROT_WRITE}; // might be used on memcp, so keep them for now
-
-const exit_syscallnum: u64 = 30; // Develop purpose only
 
 /// HANDLERTABLE:
 /// <self_cageid, <callnum, (addr, dest_cageid)>
@@ -68,7 +67,7 @@ const exit_syscallnum: u64 = 30; // Develop purpose only
 /// NOT WORK! required to be static. all lifetime in vec needs to be same 
 /// 
 /// TODO: do we need lock here...? we should allow multiple access to same logic at same time??
-pub type Raw_CallFunc = fn(
+pub type RawCallFunc = fn(
     target_cageid: u64,
     arg1: u64,
     arg2: u64,
@@ -84,14 +83,10 @@ pub type Raw_CallFunc = fn(
     arg6_cageid: u64,
 ) -> i32;
 
-/// GrateEntryTable is to map entry dispatcher function per grateid.
-const MAX_GRATEID: usize = 1024;
-
 static mut GLOBAL_GRATE: Option<Vec<Option<Box<dyn FnMut(
     u64, u64, u64, u64, u64,
     u64, u64, u64, u64, u64,
-    u64, u64, u64, u64, u64,
-    u64, u64, u64, u64, u64
+    u64, u64, u64, u64
 ) -> i32 >>>> = None;
 
 fn init_global_grate() {
@@ -105,8 +100,7 @@ fn init_global_grate() {
             let f: Option<Box<dyn FnMut(
                 u64, u64, u64, u64, u64,
                 u64, u64, u64, u64, u64,
-                u64, u64, u64, u64, u64,
-                u64, u64, u64, u64, u64,
+                u64, u64, u64, u64
             ) -> i32>> = None;
             
             if let Some(ref mut vec) = GLOBAL_GRATE {
@@ -127,21 +121,6 @@ fn rm_from_global_grate(grateid: u64) {
     }
 }
 
-// fn check_is_grate(id: u64) -> bool {
-//     unsafe {
-//         if let Some(ref global_grate) = GLOBAL_GRATE {
-//             if grateid < global_grate.len() as u64 {
-//                 // grateid is the index of GLOBAL_GRATE. If the id is a grate
-//                 // then the related 
-//                 return global_grate[grateid as usize].is_some();
-//             }
-//         }
-//         // Return false is either GLOBAL_GRATE is uninitialized or grateid exceed 
-//         // range
-//         false
-//     }
-// }
-
 fn call_grate_func(
     grateid: u64,
     call_index: u64, 
@@ -152,12 +131,6 @@ fn call_grate_func(
     arg4: u64, arg4_cageid: u64,
     arg5: u64, arg5_cageid: u64,
     arg6: u64, arg6_cageid: u64,
-    arg1_datatype: u64, 
-    arg2_datatype: u64, 
-    arg3_datatype: u64, 
-    arg4_datatype: u64, 
-    arg5_datatype: u64, 
-    arg6_datatype: u64,
 ) -> Option<i32> {
     println!("[3i|call_grate_func] grateid (aka index): {}", grateid);
     unsafe {
@@ -172,12 +145,6 @@ fn call_grate_func(
                         arg4, arg4_cageid,
                         arg5, arg5_cageid,
                         arg6, arg6_cageid,
-                        arg1_datatype, 
-                        arg2_datatype, 
-                        arg3_datatype, 
-                        arg4_datatype, 
-                        arg5_datatype, 
-                        arg6_datatype,
                     ));
                 } else {
                     println!("Function at index {} is None", grateid);
@@ -197,23 +164,11 @@ fn call_grate_func(
 // Keys are the grate, the value is a HashMap with a key of the callnum
 // and the values are a (target_call_index, grate) tuple for the actual handlers...
 // Added mutex to avoid race condition
-// lazy_static::lazy_static! {
-//     #[derive(Debug)]
-//     // <self_cageid, <callnum, (target_call_index, dest_grateid)>
-//     // callnum is mapped to addr, not self
-//     pub static ref HANDLERTABLE: Mutex<HashMap<u64, HashMap<u64, HashMap<u64, u64>>>> = Mutex::new(HashMap::new());
-// }
-#[derive(Debug, Clone)]
-pub struct HandlerEntry {
-    pub dest_grateid: u64,
-    pub arg_type: [u64; 6],
-}
-
 lazy_static::lazy_static! {
     #[derive(Debug)]
-    // <self_cageid, <callnum, (target_call_index, entry[dest_grateid + 6_args_type])>
+    // <self_cageid, <callnum, (target_call_index, dest_grateid)>
     // callnum is mapped to addr, not self
-    pub static ref HANDLERTABLE: Mutex<HashMap<u64, HashMap<u64, HashMap<u64, HandlerEntry>>>> = Mutex::new(HashMap::new());
+    pub static ref HANDLERTABLE: Mutex<HashMap<u64, HashMap<u64, HashMap<u64, u64>>>> = Mutex::new(HashMap::new());
 }
 
 /// Use functions to improve lock usage
@@ -222,15 +177,15 @@ fn check_cage_handler_exist(cageid: u64) -> bool {
     handler_table.contains_key(&cageid)
 }
 
-/// Return value: <call_index_inside_grate, grate_handler_entry>
-fn get_handler(self_cageid: u64, syscall_num: u64) -> Option<(u64, HandlerEntry)> {
+/// Return value: <call_index_inside_grate, grateid>
+fn get_handler(self_cageid: u64, syscall_num: u64) -> Option<(u64, u64)> {
     let handler_table = HANDLERTABLE.lock().unwrap();
     
     handler_table
         .get(&self_cageid) // Get the first HashMap<u64, HashMap<u64, u64>>
         .and_then(|sub_table| sub_table.get(&syscall_num)) // Get the second HashMap<u64, u64>
         .and_then(|map| map.iter().next()) // Extract the first (key, value) pair
-        .map(|(&call_index, grateentry)| (call_index, grateentry.clone())) // Convert to (u64, HandlerEntry)
+        .map(|(&call_index, &grateid)| (call_index, grateid)) // Convert to (u64, u64)
 }
 
 /// Remove all entries point to grate
@@ -238,7 +193,7 @@ fn rm_grate_from_handler(grateid: u64) {
     let mut table = HANDLERTABLE.lock().unwrap();
     for (_, callmap) in table.iter_mut() {
         for (_, target_map) in callmap.iter_mut() {
-            target_map.retain(|_, entry| entry.dest_grateid != grateid);
+            target_map.retain(|_, &mut dest_grateid| dest_grateid != grateid);
         }
     }
 }
@@ -268,17 +223,22 @@ static EXITING_TABLE: Lazy<DashSet<u64>> = Lazy::new(|| DashSet::new());
 /// 1. match-all / deregister cases 
 /// 2. handle treat as function ptr not index (data structure will change)
 pub fn register_handler(
+    _callnum: u64,
     targetcage: u64,    // Cage to modify
     targetcallnum: u64, // Syscall number or match-all indicator
+    _arg1cage: u64,
     handlefunc: u64,     // Function index to register (for grate, also called destination call) _or_ 0 for deregister 
     handlefunccage: u64, // Grate cage id _or_ Deregister flag or additional information
-    arg1_datatype: u64, 
-    arg2_datatype: u64, 
-    arg3_datatype: u64, 
-    arg4_datatype: u64, 
-    arg5_datatype: u64, 
-    arg6_datatype: u64,
+    _arg3: u64,
+    _arg3cage: u64,
+    _arg4: u64,
+    _arg4cage: u64,
+    _arg5: u64,
+    _arg5cage: u64,
+    _arg6: u64,
+    _arg6cage: u64,
 ) -> i32 {
+    println!("[3i|register_handler] targetcage: {}, targetcallnum: {}, handlefunc: {}, handlefunccage: {}", targetcage, targetcallnum, handlefunc, handlefunccage);
     // Make sure that both the cage that registers the handler and the cage being registered are valid (not in exited state)
     if EXITING_TABLE.contains(&targetcage) && EXITING_TABLE.contains(&handlefunccage) {
         return threei_const::ELINDESRCH as i32;
@@ -286,17 +246,12 @@ pub fn register_handler(
 
     let mut handler_table = HANDLERTABLE.lock().unwrap();
 
-    let new_entry = HandlerEntry {
-        dest_grateid: handlefunccage,
-        arg_type: [arg1_datatype, arg2_datatype, arg3_datatype, arg4_datatype, arg5_datatype, arg6_datatype],
-    };
-
     if let Some(cage_entry) = handler_table.get(&targetcage) {
         // Check if targetcallnum exists
         if let Some(callnum_entry) = cage_entry.get(&targetcallnum) {
             // Check if handlefunc exists
             match callnum_entry.get(&handlefunc) {
-                Some(existing_dest_grateid) if existing_dest_grateid.dest_grateid == handlefunccage => return 0, // Do nothing
+                Some(existing_dest_grateid) if *existing_dest_grateid == handlefunccage => return 0, // Do nothing
                 Some(_) => panic!("Already exists"),
                 None => {} // If `handlefunc` not exists, execute insertion
             }
@@ -308,7 +263,7 @@ pub fn register_handler(
         .or_insert_with(HashMap::new)
         .entry(targetcallnum)
         .or_insert_with(HashMap::new)
-        .insert(handlefunc, new_entry);
+        .insert(handlefunc, handlefunccage);
     // println!("[3i|register_handler] handler_table: {:?}", handler_table);
     0
 }
@@ -319,59 +274,24 @@ pub fn register_handler(
 ///
 /// Note that this call is itself made through a syscall and is thus
 /// interposable.
-// pub fn copy_handler_table_to_cage(
-//     _callnum: u64,
-//     targetcage: u64,
-//     srccage: u64,
-//     _arg1cage: u64,
-//     _arg2: u64,
-//     _arg2cage: u64,
-//     _arg3: u64,
-//     _arg3cage: u64,
-//     _arg4: u64,
-//     _arg4cage: u64,
-//     _arg5: u64,
-//     _arg5cage: u64,
-//     _arg6: u64,
-//     _arg6cage: u64,
-// ) -> u64 {
-//     let mut handler_table = HANDLERTABLE.lock().unwrap();
-
-//     if let Some(srccage_entries) = handler_table.get(&srccage) {
-//         // Create new HashMap for target case
-//         let mut new_entries = HashMap::new();
-
-//         for (callnum, cage_call_table) in srccage_entries {
-//             let new_cage_call_table = Arc::new(Mutex::new({
-//                 // Deep copy CageCallTable
-//                 if let Ok(src_cage_call_table) = cage_call_table.lock() {
-//                     CageCallTable {
-//                         defaultcallfunc: src_cage_call_table
-//                             .defaultcallfunc
-//                             .as_ref()
-//                             .map(|funcs| funcs.clone()),
-//                         thiscalltable: src_cage_call_table.thiscalltable.clone(),
-//                     }
-//                 } else {
-//                     continue;
-//                 }
-//             }));
-
-//             new_entries.insert(*callnum, new_cage_call_table);
-//         }
-
-//         handler_table.insert(targetcage, new_entries);
-
-//         println!(
-//             "Successfully copied handler table entries from cage {} to cage {}",
-//             srccage, targetcage
-//         );
-//     } else {
-//         println!("No entries found for srccage {} in HANDLERTABLE", srccage);
-//         return threei_const::ELINDAPIABORTED;
-//     }
-//     0
-// }
+pub fn copy_handler_table_to_cage(
+    _callnum: u64,
+    targetcage: u64,
+    srccage: u64,
+    _arg1cage: u64,
+    _arg2: u64,
+    _arg2cage: u64,
+    _arg3: u64,
+    _arg3cage: u64,
+    _arg4: u64,
+    _arg4cage: u64,
+    _arg5: u64,
+    _arg5cage: u64,
+    _arg6: u64,
+    _arg6cage: u64,
+) -> u64 {
+    0
+}
 
 /// `make_syscall` is simpler, which is to directly execute the system call that grate/cage wants to execute.
 /// But there are several special cases that need to be treated differently:
@@ -416,7 +336,7 @@ pub fn make_syscall(
     println!("[3i|make_syscall] syscallnum: {}, self_cageid: {}, target_cageid: {}", syscall_num, self_cageid, target_cageid);
     // Return error if the target cage/grate is exiting. We need to add this check beforehead, because make_syscall will also
     // contain cases that can directly redirect a syscall when self_cageid == target_id, which will bypass the handlertable check
-    if EXITING_TABLE.contains(&target_cageid) && syscall_num != exit_syscallnum {
+    if EXITING_TABLE.contains(&target_cageid) && syscall_num != EXIT_SYSCALL {
         return threei_const::ELINDESRCH as i32;
     }
 
@@ -424,10 +344,8 @@ pub fn make_syscall(
     // if there's a better to handle
     // now if only one syscall in cage has been registered, then every call of that cage will check (extra overhead)
     if check_cage_handler_exist(self_cageid) {
-        if let Some((call_index, grateentry)) = get_handler(self_cageid, syscall_num) {
-            let grateid = grateentry.dest_grateid;
-
-            // <targetcage, targetcallnum, handlefunc_index_in_this_grate, this_grate_id, arg_datatypes(6 total)>
+        if let Some((call_index, grateid)) = get_handler(self_cageid, syscall_num) {
+            // <targetcage, targetcallnum, handlefunc_index_in_this_grate, this_grate_id>
             println!("[3i|make_syscall] grate call -- selfcageid: {}, syscallnum: {}, callindex: {}, grateid: {}", self_cageid, syscall_num, call_index, grateid);
             // Theoretically, the complexity is O(1), shouldn't affect performance a lot
             if let Some(ret) = call_grate_func(
@@ -440,12 +358,6 @@ pub fn make_syscall(
                 arg4, arg4_cageid,
                 arg5, arg5_cageid,
                 arg6, arg6_cageid,
-                grateentry.arg_type[0],
-                grateentry.arg_type[1],
-                grateentry.arg_type[2],
-                grateentry.arg_type[3],
-                grateentry.arg_type[4],
-                grateentry.arg_type[5],
             ) {
                 return ret;
             } else {
@@ -459,7 +371,7 @@ pub fn make_syscall(
 
     // TODO: need to move to harsh_cage_exit...??
     // Cleanup two global tables for exit syscall
-    if syscall_num == exit_syscallnum {
+    if syscall_num == EXIT_SYSCALL {
         // println!("[3i|exit] exit cageid: {:?}", self_cageid);
         // todo: potential refinement here
         // since `rm_grate_from_handler` searches all entries and remove desired entries..
@@ -526,7 +438,7 @@ pub fn make_syscall(
 
 //     // TODO: replace call num with real exit_syscall num
 //     harsh_cage_exit(
-//         exit_syscallnum, // exit_syscall
+//         EXIT_SYSCALL, // exit_syscall
 //         targetcage,
 //         exittype,
 //         0,
@@ -605,6 +517,18 @@ pub fn make_syscall(
 // }
 
 /***************************** copy_data_between_cages *****************************/
+const MAX_STRLEN: usize = 4096;
+
+fn _strlen_in_cage(src: *const u8, max_len: usize) -> Option<usize> {
+    unsafe {
+        for i in 0..max_len {
+            if *src.add(i) == 0 {
+                return Some(i);
+            }
+        }
+    }
+    None // null terminator not found within max_len
+}
 // Validate the memory range for both source (`srcaddr -> srcaddr + srclen`) and destination (`destaddr -> destaddr + destlen`)
 // using the corresponding `vmmap` functions in RawPOSIX.
 //
@@ -614,92 +538,148 @@ pub fn make_syscall(
 //  - If the destination range becomes valid and satisfies the required permissions after mapping, proceed to
 //      perform the copy operation.
 // Otherwise, abort the operation if the mapping fails or permissions are insufficient.
+//
+// Returns:
+// Returns the mapped destination address on success, or `ELINDAPIABORTED` on failure.
 pub fn copy_data_between_cages(
-    callnum: u64,
-    targetcage: u64,
+    thiscage: u64,
+    _targetcage: u64,
     srcaddr: u64,
     srccage: u64,
     destaddr: u64,
     destcage: u64,
     len: u64,
     _arg3cage: u64,
-    copytype: u64,
+    copytype: u64,  // 0 for Raw shallow copy (memcpy), 1 for Shallow copy for strings (strncpy)
     _arg4cage: u64,
     _arg5: u64,
     _arg5cage: u64,
     _arg6: u64,
     _arg6cage: u64,
 ) -> u64 {
-    // Check address validity and permissions
-    // Validate source address
-    // if !check_addr(srccage, srcaddr, len as usize, PROT_READ as i32).unwrap_or(false) {
-    //     eprintln!("Source address is invalid.");
-    //     return threei_const::ELINDAPIABORTED; // Error: Invalid address
-    // }
+    println!("[3i|copy_data_between_cages] srcaddr: {}, srccage: {}, destaddr: {}, destcage: {}, len: {}, copytype: {}", 
+        srcaddr, srccage, destaddr, destcage, len, copytype);
+    // Check if destaddr has been set
+    let destaddr = if destaddr == 0 {
+        // Map the memory region for the destination address, if user doesn't allocate the memory
+        make_syscall(destcage,
+            MMAP_SYSCALL,
+            destcage,
+            0, // let sys pick addr 
+            destcage,
+            len as u64,
+            destcage,
+            (PROT_READ | PROT_WRITE) as u64,
+            destcage,
+            (MAP_PRIVATE | MAP_ANONYMOUS) as u64,
+            destcage,
+            (0 - 1) as u64,
+            destcage,
+            0,
+            destcage,
+        ) as u64
+    } else {
+        destaddr
+    };
 
-    // // Validate destination address, and we will try to map if we don't the memory region
-    // // unmapping
-    // if !check_addr(destcage, destaddr, len as usize, PROT_WRITE as i32).unwrap_or(false) {
-    //     eprintln!("Dest address is invalid.");
-    //     return threei_const::ELINDAPIABORTED; // Error: Invalid address
-    // }
+    let host_src_addr = sc_convert_uaddr_to_host(srcaddr, srccage, thiscage);
+    let host_dest_addr = sc_convert_uaddr_to_host(destaddr, destcage, thiscage);
 
-    // TODO:
-    //  - Do we need to consider the permission relationship between cages..?
-    //      ie: only parent cage can perfrom copy..?
-    // if !_has_permission(srccage, destcage) {
-    //     eprintln!("Permission denied between cages.");
-    //     return threei_const::ELINDAPIABORTED; // Error: Permission denied
-    // }
-
-    // Perform the data copy
-    unsafe {
-        let src_ptr = srcaddr as *const u8;
-        let dest_ptr = destaddr as *mut u8;
-        std::ptr::copy_nonoverlapping(src_ptr, dest_ptr, len as usize);
+    // Always check the source address first
+    // Threei needs to validate both middle point (`addr + len / 2`) and end point (`addr + len`) to ensure that
+    // the entire range is valid and this helps catch most cases where a large len might wrap into a different region.
+    // If len is very large (e.g., close to 2^64), then `addr + len` might wrap around due to integer overflow. 
+    // This can cause the validation check to pass incorrectly (e.g., addr is valid, and `addr + len` is also valid, but 
+    // they don't point to the same region).
+    match check_addr(srccage, srcaddr, (len/2) as usize, PROT_READ) {
+        Ok(_) => {
+            // Check the end point
+            match check_addr(srccage, srcaddr, len as usize, PROT_READ) {
+                Ok(_) => {},
+                Err(_e) => {
+                    eprintln!("[3i|copy_data_between_cages] Source middle address check failed: {}", srcaddr);
+                    return threei_const::ELINDAPIABORTED; // Error: Invalid source address
+                }
+            }
+        },
+        Err(_e) => {
+            eprintln!("[3i|copy_data_between_cages] Source end address check failed: {}", srcaddr);
+            return threei_const::ELINDAPIABORTED; // Error: Invalid source address
+        }
     }
 
-    0
-}
+    // memcpy: Copies exactly n bytes from src to dest.
+    // strncpy: Copies at most n bytes from src to dest.
+    // If grate doesn't know the length of the content beforehand, it should use `strncpy` and set len to maximum 
+    // limits to avoid buffer overflow, so 3i needs to check the length of the content before copying.
+    // Otherwise, grate should know the exact length of the content, for example the complex data structure etc.
+    // In this case, it should use `memcpy` to copy the content.
+    // So we have to check the address range and permissions accordingly before copying the data.
+    if copytype == 0 {
+        // check_addr(cageid: u64, arg: u64, length: usize, prot: i32)
+        match check_addr(destcage, destaddr, (len/2) as usize, PROT_READ | PROT_WRITE) {
+            Ok(_) => {},
+            Err(_e) => {
+                eprintln!("[3i|copy_data_between_cages] Destination mid address check failed: {}", destaddr);
+                return threei_const::ELINDAPIABORTED; // Error: Invalid destination address
+            }
+        }
+        // Check the end point
+        match check_addr(destcage, destaddr, len as usize, PROT_READ | PROT_WRITE) {
+            Ok(_) => {}, 
+            Err(_e) => {
+                eprintln!("[3i|copy_data_between_cages] Destination end address check failed: {}", destaddr);
+                return threei_const::ELINDAPIABORTED; // Error: Invalid destination address
+            }
+        }
+        // memcpy
+        unsafe {
+            ptr::copy_nonoverlapping(
+                host_src_addr as *mut u8, 
+                host_dest_addr as *mut u8, 
+                len as usize,
+            );
+        }
+    } else if copytype == 1 {
+        // strncpy
+        // Find the null-terminated length in the source string
+        let maxlen = MAX_STRLEN; // upper bound to prevent runaway scan
+        let actual_len = match _strlen_in_cage(host_src_addr as *const u8, maxlen) {
+            Some(n) => n + 1, // +1 to include the '\0'
+            None => {
+                eprintln!("[3i|copy_data_between_cages] Source string too long or not null-terminated");
+                return threei_const::ELINDAPIABORTED;
+            }
+        };
 
-// -- Check if permissions allow data copying between cages
-// TODO:
-// How we handle permission relationship...?
-// fn _has_permission(srccage: u64, destcage: u64) -> bool {
-//     lazy_static::lazy_static! {
-//         static ref PERMISSION_TABLE: Mutex<HashMap<u64, HashSet<u64>>> = Mutex::new(HashMap::new());
-//     }
+        // Validate destination range
+        match check_addr(destcage, destaddr, actual_len / 2, PROT_READ | PROT_WRITE) {
+            Err(_e) => {
+                eprintln!("[3i|copy_data_between_cages] Destination mid range invalid: {}", destaddr);
+                return threei_const::ELINDAPIABORTED;
+            }
+            _ => {}
+        }
+        match check_addr(destcage, destaddr, actual_len, PROT_READ | PROT_WRITE) {
+            Err(_e) => {
+                eprintln!("[3i|copy_data_between_cages] Destination end range invalid: {}", destaddr);
+                return threei_const::ELINDAPIABORTED;
+            }
+            _ => {}
+        }
 
-//     // Check permission
-//     let permission_table = PERMISSION_TABLE.lock().unwrap();
-//     if let Some(allowed_destinations) = permission_table.get(&srccage) {
-//         if allowed_destinations.contains(&destcage) {
-//             return true;
-//         } else {
-//             eprintln!(
-//                 "Permission denied: Cage {} cannot access Cage {}.",
-//                 srccage, destcage
-//             );
-//             return false;
-//         }
-//     }
-//     false
-// }
-
-// ---- CODE BELOW IS HELPER FUNCTIONS FOR TESTING ----
-pub fn testing_remove_cage_entry(target_cageid: u64) -> i32 {
-    let mut handler_table = HANDLERTABLE.lock().unwrap();
-    if handler_table.remove(&target_cageid).is_none() {
-        eprintln!(
-            "targetcage {:?} entry not found in HANDLERTABLE when triggering harsh cage exit",
-            target_cageid
-        );
-        return -1;
+        // Perform the copy
+        unsafe {
+            ptr::copy_nonoverlapping(
+                host_src_addr as *const u8,
+                host_dest_addr as *mut u8,
+                actual_len,
+            );
+        }
+    } else {
+        eprintln!("[3i|copy_data_between_cages] Invalid copy type: {}", copytype);
+        return threei_const::ELINDAPIABORTED; // Error: Invalid copy type
     }
-    return 0;
-}
 
-pub fn testing_remove_all() {
-    let mut handler_table = HANDLERTABLE.lock().unwrap();
-    handler_table.clear();
+    destaddr
 }

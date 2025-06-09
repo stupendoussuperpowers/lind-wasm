@@ -632,62 +632,11 @@ impl RunCommand {
                     insert_ctx(current_pid as usize, grate_instancehandler.clone());
                 }
                 
-                let res = threei_test_func(current_pid, Box::new(move |index: u64, cageid: u64, arg1: u64, arg1cageid: u64, arg2: u64, arg2cageid: u64, arg3: u64, arg3cageid: u64, arg4: u64, arg4cageid: u64, arg5: u64, arg5cageid: u64, arg6: u64, arg6cageid: u64, arg1_datatype: u64, 
-                    arg2_datatype: u64, 
-                    arg3_datatype: u64, 
-                    arg4_datatype: u64, 
-                    arg5_datatype: u64, 
-                    arg6_datatype: u64,| -> i32 {
+                let res = threei_test_func(current_pid, Box::new(move |index: u64, cageid: u64, arg1: u64, arg1cageid: u64, arg2: u64, arg2cageid: u64, arg3: u64, arg3cageid: u64, arg4: u64, arg4cageid: u64, arg5: u64, arg5cageid: u64, arg6: u64, arg6cageid: u64| -> i32 {
                     let grate_handler = get_ctx(current_pid as usize);
                     let ctx = grate_handler.vmctx();
                     unsafe {
                         Caller::with(ctx, |mut caller: Caller<'_, Host>| {
-
-                            // TODO:
-                            // Use copy_data_between_cages function in 3i
-
-                            // use typemap lib to extract the content in the string 
-                            let path_content = sc_convert_path(arg1, arg1cageid, cageid);
-                            println!("[wasmtime] in cage {:?} with cageid {}", path_content, cageid);
-                            // increase the linear memory according to the str.len
-                            let len = path_content.len();
-                            let virt_addr = make_syscall(
-                                current_pid,
-                                MMAP_SYSCALL,
-                                current_pid,
-                                0, // let sys pick addr 
-                                current_pid,
-                                len as u64,
-                                current_pid,
-                                (PROT_READ | PROT_WRITE) as u64,
-                                current_pid,
-                                (MAP_PRIVATE | MAP_ANONYMOUS) as u64,
-                                current_pid,
-                                (0 - 1) as u64,
-                                current_pid,
-                                0,
-                                current_pid,
-                            ) as u32;
-
-                            println!("[wasmtime] virtual addr in grate {:?} with grateid {}", virt_addr, current_pid);
-                            
-                            let host_addr = sc_convert_uaddr_to_host(virt_addr as u64, current_pid, current_pid);
-                            // cp str to linear memory
-                            ptr::copy_nonoverlapping(
-                                path_content.as_ptr(), 
-                                host_addr as *mut u8, 
-                                len,
-                            );
-
-                            println!("[wasmtime]");
-                            // [TEST] - print out string
-                            if let Ok(tmp_path_test) = std::ffi::CStr::from_ptr(host_addr as *const i8).to_str() {
-                                println!("[wasmtime] in grate {:?} with grateid {}", tmp_path_test, current_pid);
-                            } else {
-                                println!("Invalid UTF-8 or pointer");
-                            }
-                            
-                            // pass the linear memory addr to the function
 
                             let Caller { mut store, caller: instance } = caller;
                             // let gstore = &mut caller.store;
@@ -705,7 +654,7 @@ impl RunCommand {
                                 }
                             };
                             
-                            let result = match grate_entry_point.call(&mut store, (index, cageid, virt_addr as u64, arg1cageid, arg2, arg2cageid, arg3, arg3cageid, arg4, arg4cageid, arg5, arg5cageid, arg6, arg6cageid)) {
+                            let result = match grate_entry_point.call(&mut store, (index, cageid, arg1, arg1cageid, arg2, arg2cageid, arg3, arg3cageid, arg4, arg4cageid, arg5, arg5cageid, arg6, arg6cageid)) {
                                 Ok(value) => value,
                                 Err(e) => {
                                     eprintln!("Error calling pass_fptr_to_wt: {:?}", e);

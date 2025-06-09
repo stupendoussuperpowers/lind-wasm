@@ -54,17 +54,13 @@ int lind_syscall (unsigned int callnumber, unsigned long long callname, unsigned
     return ret;
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+
 // Entry point for wasmtime, lind_syscall is an imported function from wasmtime
 int __imported_wasi_snapshot_preview1_register_syscall(uint64_t targetcage, 
     uint64_t targetcallnum, 
     uint64_t handlefunc_index_in_this_grate, 
-    uint64_t this_grate_id, 
-    uint64_t arg1_datatype, 
-    uint64_t arg2_datatype, 
-    uint64_t arg3_datatype, 
-    uint64_t arg4_datatype, 
-    uint64_t arg5_datatype, 
-    uint64_t arg6_datatype) __attribute__((
+    uint64_t this_grate_id) __attribute__((
     __import_module__("lind"),
     __import_name__("register-syscall")
 ));
@@ -79,15 +75,39 @@ int __imported_wasi_snapshot_preview1_register_syscall(uint64_t targetcage,
 int lind_register_syscall (uint64_t targetcage, 
     uint64_t targetcallnum, 
     uint64_t handlefunc_index_in_this_grate, 
-    uint64_t this_grate_id, 
-    uint64_t arg1_datatype, 
-    uint64_t arg2_datatype, 
-    uint64_t arg3_datatype, 
-    uint64_t arg4_datatype, 
-    uint64_t arg5_datatype, 
-    uint64_t arg6_datatype)
+    uint64_t this_grate_id)
 {
-    int ret = __imported_wasi_snapshot_preview1_register_syscall(targetcage, targetcallnum, handlefunc_index_in_this_grate, this_grate_id, arg1_datatype, arg2_datatype, arg3_datatype, arg4_datatype, arg5_datatype, arg6_datatype);
+    int ret = __imported_wasi_snapshot_preview1_register_syscall(targetcage, targetcallnum, handlefunc_index_in_this_grate, this_grate_id);
+    // handle the errno
+    // in rawposix, we use -errno as the return value to indicate the error
+    // but this may cause some issues for mmap syscall, because mmap syscall
+    // is returning an 32-bit address, which may overflow the int type (i32)
+    // luckily we can handle this easily because the return value of mmap is always
+    // multiple of pages (typically 4096) even when overflow, therefore we can distinguish
+    // the errno and mmap result by simply checking if the return value is
+    // within the valid errno range
+    if(ret < 0 && ret > -256)
+    {
+        errno = -ret;
+        return -1;
+    }
+    else
+    {
+        errno = 0;
+    }
+    return ret;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Entry point for wasmtime, lind_cp_data is an imported function from wasmtime
+int __imported_wasi_snapshot_preview1_cp_data(uint64_t thiscage, uint64_t targetcage, uint64_t srcaddr, uint64_t srccage, uint64_t destaddr, uint64_t destcage, uint64_t len, uint64_t copytype) __attribute__((
+    __import_module__("lind"),
+    __import_name__("cp-data-syscall")
+));
+
+int lind_cp_data(uint64_t thiscage, uint64_t targetcage, uint64_t srcaddr, uint64_t srccage, uint64_t destaddr, uint64_t destcage, uint64_t len, uint64_t copytype)
+{
+    int ret = __imported_wasi_snapshot_preview1_cp_data(thiscage, targetcage, srcaddr, srccage, destaddr, destcage, len, copytype);
     // handle the errno
     // in rawposix, we use -errno as the return value to indicate the error
     // but this may cause some issues for mmap syscall, because mmap syscall
