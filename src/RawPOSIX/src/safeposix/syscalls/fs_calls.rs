@@ -60,7 +60,10 @@ impl Cage {
             should_cloexec,
             0,
         ) {
-            Ok(virtual_fd) => return virtual_fd as i32,
+            Ok(virtual_fd) => {
+                println!("virtual_fd: {}", virtual_fd);
+                return virtual_fd as i32;
+            }
             Err(_) => return syscall_error(Errno::EMFILE, "open", "Too many files opened"),
         }
     }
@@ -905,6 +908,10 @@ impl Cage {
     /// ## Returns:
     ///     Return 0 when success; -1 along with errno when fail.
     pub fn close_syscall(&self, virtual_fd: i32) -> i32 {
+        if virtual_fd < 0 {
+            return syscall_error(Errno::EBADF, "close", "Bad File Descriptor");
+        }
+
         match fdtables::close_virtualfd(self.cageid, virtual_fd as u64) {
             Ok(()) => 0,
             Err(e) => {

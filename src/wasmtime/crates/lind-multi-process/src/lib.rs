@@ -1316,6 +1316,7 @@ pub fn lind_fork<
 >(
     caller: &mut Caller<'_, T>,
 ) -> Result<i32> {
+    println!("Lind_fork called.");
     let host = caller.data().clone();
     let ctx = host.get_ctx();
     ctx.fork_call(caller)

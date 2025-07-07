@@ -10,6 +10,7 @@
 int main(int argc, char *argv[])
 {
     int fd = open("write.txt", O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    printf("open'd fd: %d\n", fd);
     pid_t child = fork();
 
     if(child == 0)
@@ -27,6 +28,7 @@ int main(int argc, char *argv[])
     wait(NULL);
 
     printf("all done\n");
+    printf("closing fd: %d\n", fd);
     close(fd);
     return 0;
 }
