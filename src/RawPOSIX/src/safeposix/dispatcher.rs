@@ -1091,7 +1091,12 @@ pub fn lind_syscall_api(
             let cage = interface::cagetable_getref(cageid);
             // Convert user space buffer address to physical address
             let status_addr = translate_vmmap_addr(&cage, arg1).unwrap() as u64;
-            let status = interface::get_i32_ref(status_addr).unwrap();
+
+            let status = match status_addr {
+                0 => None,
+                _ => interface::get_i32_ref(status_addr).unwrap(),
+            };
+
             cage.wait_syscall(status)
         }
 
@@ -1100,7 +1105,12 @@ pub fn lind_syscall_api(
             let cage = interface::cagetable_getref(cageid);
             // Convert user space buffer address to physical address
             let status_addr = translate_vmmap_addr(&cage, arg2).unwrap();
-            let status = interface::get_i32_ref(status_addr).unwrap();
+
+            let status = match status_addr {
+                0 => None,
+                _ => interface::get_i32_ref(status_addr).unwrap(),
+            };
+
             let options = arg3 as i32;
 
             cage.waitpid_syscall(pid, status, options)
