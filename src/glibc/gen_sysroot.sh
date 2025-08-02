@@ -8,6 +8,8 @@ include_source_dir="$PWD/target/include"
 crt1_source_path="$PWD/lind_syscall/crt1.o"
 lind_syscall_path="$PWD/lind_syscall/lind_syscall.o" # Path to the lind_syscall.o file
 register_handler_path="$PWD/lind_syscall/register_handler.o"
+cp_data_path="$PWD/lind_syscall/cp_data_between_cages.o"
+imfs_path="$PWD/lind_syscall/imfs.o"
 
 # TARGET_TRIPLE = wasm32-wasi
 TARGET_TRIPLE=wasm32-wasi-threads
@@ -23,7 +25,7 @@ rm -rf "$sysroot_dir"
 object_files=$(find "$src_dir" -type f -name "*.o" ! \( -name "stamp.o" -o -name "argp-pvh.o" -o -name "repertoire.o" -o -name "static-stubs.o" \))
 
 # Add the lind_syscall.o file to the list of object files
-object_files="$object_files $lind_syscall_path $register_handler_path"
+object_files="$object_files $lind_syscall_path $register_handler_path $cp_data_path $imfs_path"
 # object_files="$object_files $lind_syscall_path"
 
 # Check if object files were found
@@ -56,3 +58,5 @@ cp "$crt1_source_path" "$sysroot_dir/lib/wasm32-wasi/"
 
 # Copy register_handler related definition to
 cp "$PWD/lind_syscall/register_handler.h" "$sysroot_dir/include/wasm32-wasi/"
+cp "$PWD/lind_syscall/imfs.h" "$sysroot_dir/include/wasm32-wasi/"
+cp "$PWD/lind_syscall/cp_data_between_cages.h" "$sysroot_dir/include/wasm32-wasi
