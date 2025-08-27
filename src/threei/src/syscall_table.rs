@@ -15,6 +15,8 @@ pub const SYSCALL_TABLE: &[(u64, Raw_CallFunc)] = &[
     (1, write_syscall),
     (2, open_syscall),
     (3, close_syscall),
+    (4, stat_syscall),
+    (5, fstat_syscall),
     (8, lseek_syscall),
     (9, mmap_syscall),
     (10, open_syscall),

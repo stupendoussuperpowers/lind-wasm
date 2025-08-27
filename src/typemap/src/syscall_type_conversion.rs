@@ -165,6 +165,25 @@ pub fn sc_convert_buf_to_host(buf_arg: u64, buf_arg_cageid: u64, cageid: u64) ->
 }
 
 
+/// This function is used to convert the the libc returned stat structure to StatData.
+/// 
+/// Input:
+/// 	- dest: Destination pointer for the StatData.
+/// 	- src: Source stat pointer returned from the libc::stat / libc::fstat call.
+pub fn sc_convert_stat(dest: &mut StatData, src: &libc::stat) {
+        dest.st_mode = src.st_mode as u32;
+        dest.st_blksize = src.st_blksize as i32;
+        dest.st_blocks = src.st_blocks as u32;
+        dest.st_dev = src.st_dev as u64;
+        dest.st_gid = src.st_gid;
+        dest.st_ino = src.st_ino as usize;
+        dest.st_mode = src.st_mode as u32;
+        dest.st_nlink = src.st_nlink as u32;
+        dest.st_rdev = src.st_rdev as u64;
+        dest.st_size = src.st_size as usize;
+        dest.st_uid = src.st_uid;
+}
+
 
 /// `sc_convert_sysarg_to_u32` is the type conversion function used to convert the
 /// argument's type from u64 to u32. When in `secure` mode, extra checks will be

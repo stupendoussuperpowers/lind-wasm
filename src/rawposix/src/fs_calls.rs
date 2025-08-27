@@ -224,6 +224,125 @@ pub fn close_syscall(
     }
 }
 
+
+/// Reference to: https://man7.org/linux/man-pages/man2/stat.2.html 
+///
+/// 'stat' and 'fstat' syscalls return information about a file or a directory. 
+/// The actual contents of the Stat struct vary with different architectures, for lind, 
+/// we define this in `StatData` in sysdefs.
+///
+/// Input:
+///     - path_arg: Pointer to a pathname for the file
+///     - buf_arg: Pointer to a user-allocated buffer that will be populated with 
+///         the file information. 
+pub fn stat_syscall(
+    cageid: u64,
+    path_arg: u64,
+    path_cageid: u64,
+    buf_arg: u64,
+    buf_cageid: u64,
+    arg3: u64,
+    arg3_cageid: u64,
+    arg4: u64,
+    arg4_cageid: u64,
+    arg5: u64,
+    arg5_cageid: u64,
+    arg6: u64,
+    arg6_cageid: u64,
+) -> i32 {
+    // Type conversions.
+    let path = sc_convert_path_to_host(path_arg, path_cageid, cageid);
+
+    let buf = sc_convert_buf(buf_arg, buf_cageid, cageid);
+    if buf.is_null() {
+        return syscall_error(Errno::EFAULT, "stat", "Buffer is null");
+    }
+ 
+    if !(sc_unusedarg(arg3, arg3_cageid)
+        && sc_unusedarg(arg4, arg4_cageid)
+        && sc_unusedarg(arg5, arg5_cageid)
+        && sc_unusedarg(arg6, arg6_cageid))
+    {
+        return syscall_error(Errno::EFAULT, "stat", "Invalid Cage ID");
+    }
+
+    // Call libc.
+    let mut libc_statbuf: stat = unsafe { std::mem::zeroed() };
+    let ret = unsafe { libc::stat(path.as_ptr(), &mut libc_statbuf) as i32 };
+    if ret < 0 {
+        let errno = get_errno();
+        return handle_errno(errno, "stat");
+    }
+
+    // Convert to StatData.
+    let dest: &mut StatData = unsafe { &mut *(buf as *mut StatData) };
+    sc_convert_stat(dest, &libc_statbuf);
+
+    ret
+}
+
+
+/// Reference to: https://man7.org/linux/man-pages/man2/fstat.2.html 
+///
+/// 'stat' and 'fstat' syscalls return information about a file or a directory. 
+/// The actual contents of the Stat struct vary with different architectures, for lind, 
+/// we define this in `StatData` in sysdefs.
+///
+/// Input:
+///     - fd_arg: The virtual file descriptor from the RawPOSIX environment.
+///     - buf_arg: Pointer to a user-allocated buffer that will be populated with 
+///         the file information. 
+pub fn fstat_syscall(
+    cageid: u64,
+    fd_arg: u64,
+    fd_cageid: u64,
+    buf_arg: u64,
+    buf_cageid: u64,
+    arg3: u64,
+    arg3_cageid: u64,
+    arg4: u64,
+    arg4_cageid: u64,
+    arg5: u64,
+    arg5_cageid: u64,
+    arg6: u64,
+    arg6_cageid: u64,
+) -> i32 {
+    // Type conversions
+    let kernel_fd = convert_fd_to_host(fd_arg, fd_cageid, cageid);
+    if kernel_fd == -1 {
+        return syscall_error(Errno::EFAULT, "read", "Invalid Cage ID");
+    } else if kernel_fd == -9 {
+        return syscall_error(Errno::EBADF, "read", "Bad File Descriptor");
+    }
+
+    let buf = sc_convert_buf(buf_arg, buf_cageid, cageid);
+    if buf.is_null() {
+        return syscall_error(Errno::EFAULT, "stat", "Buffer is null");
+    }
+    
+    if !(sc_unusedarg(arg3, arg3_cageid)
+        && sc_unusedarg(arg4, arg4_cageid)
+        && sc_unusedarg(arg5, arg5_cageid)
+        && sc_unusedarg(arg6, arg6_cageid))
+    {
+        return syscall_error(Errno::EFAULT, "stat", "Invalid Cage ID");
+    }
+
+    // Call libc.
+    let mut libc_statbuf: stat = unsafe { std::mem::zeroed() };
+    let ret = unsafe { libc::fstat(kernel_fd, &mut libc_statbuf) as i32 };
+    if ret < 0 {
+        let errno = get_errno();
+        return handle_errno(errno, "stat");
+    }
+
+    // Convert to StatData.
+    let dest: &mut StatData = unsafe { &mut *(buf as *mut StatData) };
+    sc_convert_stat(dest, &libc_statbuf);
+
+    ret
+}
+
 /// Reference to Linux: https://man7.org/linux/man-pages/man2/pipe.2.html
 ///
 /// Linux `pipe()` syscall is equivalent to calling `pipe2()` with flags set to zero.
