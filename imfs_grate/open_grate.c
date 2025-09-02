@@ -10,7 +10,9 @@
 #include <sys/stat.h>
 #include <cp_data_between_cages.h>
 
-#include <imfs.h>
+#include "imfs.h"
+
+const char* preload_files;
 
 static inline void sys_log_args(const char *name, 
 				uint64_t arg1,
@@ -176,44 +178,6 @@ int write_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg2
 	return ret;
 }
 
-void preloads() {
-	const char *env = getenv("PRELOADS");
-	if(!env) {
-		fprintf(stderr, "no preloads.\n");
-		return;
-	}
-
-	char *list = strdup(env);
-	if(!list) {
-		return;
-	}
-
-	fprintf(stderr, "Loading all files\n");
-	char *line = strtok(list, "\n");
-	
-	FILE *fp = fopen("preloads.log", "a");
-
-	while(line) {
-		fprintf(fp, "Loading= %s\n", line);
-		
-		struct stat st;
-		if(stat(line, &st) < 0) {
-			line = strtok(NULL, "\n");
-			continue;
-		}
-	
-		if(strlen(line) > 0) {
-			if (S_ISREG(st.st_mode))
-				load_file(line);
-		}
-		fprintf(fp, "Loaded {%s}\n", line);
-		line = strtok(NULL, "\n");
-	}
-
-	fclose(fp);
-	free(list);
-}
-
 // Main function will always be same in all grates
 int main(int argc, char *argv[]) {
     // Should be at least two inputs (at least one grate file and one cage file)
@@ -271,8 +235,9 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_FAILURE);
             }
         } else {
-    	    imfs_init();
-    	    preloads();
+	    preload_files = getenv("PRELOADS");
+	    imfs_init();
+    	    preloads(preload_files);
 	}
     }
 
