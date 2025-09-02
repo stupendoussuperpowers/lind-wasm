@@ -1519,53 +1519,6 @@ imfs_fpathconf(int cage_id, int fd, int name)
 // Main func for local testing.
 //
 
-void
-load_file(char *path)
-{
-	LOG("Loading=%s\n", path);
-	char split_path[4096];
-	strcpy(split_path, path);
-
-	for (char *p = split_path + 1; *p; p++) {
-		if (*p == '/') {
-			*p = '\0';
-			int ret = imfs_mkdir(0, split_path, 0755);
-			*p = '/';
-			LOG("mkdir %s = %d\n", split_path, ret);
-		}
-	}
-
-	FILE *fp = fopen(path, "rb");
-	int imfs_fd = imfs_open(0, path, O_CREAT | O_WRONLY, 0777);
-
-	char buffer[1024];
-	size_t nread;
-	while ((nread = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
-		imfs_write(0, imfs_fd, buffer, nread);
-	}
-
-	fclose(fp);
-
-	imfs_close(0, imfs_fd);
-}
-
-void
-dump_file(char *impath, char *path)
-{
-	int fd = open(path, O_CREAT | O_RDWR | O_APPEND, 0755);
-
-	int ifd = imfs_open(0, impath, O_RDONLY, 0);
-
-	char buf[20];
-	int nread;
-	while ((nread = imfs_read(0, ifd, buf, 20)) > 0) {
-		write(fd, buf, nread);
-	}
-
-	close(fd);
-	imfs_close(0, ifd);
-}
-
 #ifndef LIB
 int
 main()
