@@ -120,17 +120,17 @@ int read_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg2,
 
 	ret = imfs_read(cageid, arg1, buf, count);
 
-	// Do not call cp_data if target buffer is NULL.
+	// Sometimes read() is called with a NULL buffer, do not call cp_data in that case.
 	if(arg2 != 0) {
 		cp_data_between_cages(
-			thiscage, 
-			arg2cage, // cageid, 
-			(uint64_t) buf, 
+			thiscage,
+			arg2cage,
+			(uint64_t) buf,
 			thiscage,
 			arg2,
 			arg2cage,
 			count,
-			0 // 1
+			0 // Use copytype 0 so read exactly count bytes instead of stopping at '\0'
 		);
 	}
  
@@ -171,6 +171,7 @@ int write_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg2
 		return count;
 	}
 	
+	// Often allocation for one contiguos block of memory for a file's content fails due to memory fragmentation for larger files. imfs_new_write stores file's content into smaller chunks connected through a linked list.
 	ret = imfs_new_write(cageid, arg1, buffer, count);
 	SYS_LOG("WRITE", ret);
 	free(buffer);
@@ -235,6 +236,7 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_FAILURE);
             }
         } else {
+	    // Files are loaded into memory AFTER fork has been called. This is because fork/clone fails if these files are loaded into memory pre fork. Likely due to memory limitations.
 	    preload_files = getenv("PRELOADS");
 	    imfs_init();
     	    preloads(preload_files);
