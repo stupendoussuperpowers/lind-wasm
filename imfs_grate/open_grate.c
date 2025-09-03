@@ -165,7 +165,7 @@ int write_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg2
 	);
 
 	if(arg1 < 3) {
-		int hfd = open("host_write", O_WRONLY | O_APPEND, 0);
+		int hfd = open("host_write", O_CREAT | O_WRONLY | O_APPEND, 0);
 		write(hfd, buffer, count);
 		close(hfd);
 		return count;
@@ -229,7 +229,7 @@ int main(int argc, char *argv[]) {
 	    }
 
 	    fprintf(stderr,"\n\n---Execing argv[i]=%s---\n\n", argv[i]);
-	    char *tccargs[] = {"tcc.wasm", "nodeps.c", "-o", "tccgrateout", NULL};
+	    char *tccargs[] = {"tcc.wasm", "hello.c", "-o", "tccgrateout", NULL};
 	    if ( execv(argv[i], tccargs) == -1) {
                 perror("execv failed");
                 exit(EXIT_FAILURE);
@@ -253,7 +253,7 @@ int main(int argc, char *argv[]) {
 	}
     }
   
-    dump_file("/tccgrateout", "tcc_grate_out");
+    dump_file("/tccgrateout", "tcc_hello_imfs");
 
     return 0;
 }

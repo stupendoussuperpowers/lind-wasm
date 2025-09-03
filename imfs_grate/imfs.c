@@ -692,10 +692,15 @@ dump_file(char *path, char *actual_path)
                 }
         }
 
-        int fd = open(actual_path, O_CREAT | O_WRONLY | O_APPEND, 0777);
         int ifd = imfs_open(0, path, O_RDONLY, 0);
+	if (ifd < 0) {
+		fprintf(stderr, "File %s doesn't exist within imfs.\n", path);
+		return;
+	}
 
-        size_t nread;
+        int fd = open(actual_path, O_CREAT | O_WRONLY | O_TRUNC, 0777);
+        
+	size_t nread;
         char buf[1024];
 
         while(1) {
