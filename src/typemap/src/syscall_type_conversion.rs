@@ -12,6 +12,7 @@ use std::error::Error;
 use std::str::Utf8Error;
 use sysdefs::constants::err_const::{syscall_error, Errno};
 use sysdefs::constants::fs_const::{MAX_CAGEID, PATH_MAX};
+use sysdefs::data::fs_struct::StatData;
 
 /// This function provides two operations: first, it translates path pointer address from WASM environment
 /// to kernel system address; then, it adjusts the path from user's perspective to host's perspective,
@@ -314,6 +315,21 @@ pub fn sc_unusedarg(arg: u64, arg_cageid: u64) -> bool {
     #[cfg(feature = "secure")]
     return !(arg | arg_cageid);
 }
+
+pub fn sc_convert_stat(dest: &mut StatData, src: &libc::stat) {
+        dest.st_mode = src.st_mode as u32;
+        dest.st_blksize = src.st_blksize as i32;
+        dest.st_blocks = src.st_blocks as u32;
+        dest.st_dev = src.st_dev as u64;
+        dest.st_gid = src.st_gid;
+        dest.st_ino = src.st_ino as usize;
+        dest.st_mode = src.st_mode as u32;
+        dest.st_nlink = src.st_nlink as u32;
+        dest.st_rdev = src.st_rdev as u64;
+        dest.st_size = src.st_size as usize;
+        dest.st_uid = src.st_uid;
+}
+
 
 /// This function translates the buffer pointer from user buffer address to system address, because we are
 /// transferring between 32-bit WASM environment to 64-bit kernel
