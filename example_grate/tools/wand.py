@@ -30,10 +30,11 @@ int {name}_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg
 }}
 """
 
-function_dec = "int _{name}_grate(struct {name}_args);"
+function_decl = "int _{name}_grate(struct {name}_args);"
 
 
 def generate_type(name, lvars):
+    # Take syscall name and the list of arguments it takes. Output the internal lvar_t variables.
     variables = ";\n\t".join([f"lvar_t {i}" for i in lvars]) + ";\n"
 
     num_pad = 6 - len(lvars)
@@ -45,6 +46,7 @@ def generate_type(name, lvars):
 
 
 def generate_function(name, lvars):
+    # Input: Syscall, variable. Output: Wrapper function with the structs conversion
     members = ",\n\t\t".join([member_wrapper.format(
         name=i, idx=idx+1) for idx, i in enumerate(lvars)])
 
@@ -61,9 +63,11 @@ def parse_descs(syscall_descs, header):
     ret = "" if header else top
 
     for call in ret_arr:
-        ret += generate_type(call[0], call[1]
-                             ) if header else generate_function(call[0], call[1])
-        ret += function_dec.format(name=call[0]) if header else ""
+        if header:
+            ret += generate_type(call[0], call[1])
+            ret += function_decl.format(name=call[0])
+        else:
+            ret += generate_function(call[0], call[1])
 
     return ret
 
@@ -71,7 +75,5 @@ def parse_descs(syscall_descs, header):
 if __name__ == "__main__":
     with open("syscall_descs", "r") as file:
         syscall_descs = file.read()
-    if sys.argv[1] == "0":
-        print(parse_descs(syscall_descs, True))
-    else:
-        print(parse_descs(syscall_descs, False))
+    # 0 for header file 1 for code file
+    print(parse_descs(syscall_descs, sys.argv[1] == "0"))
