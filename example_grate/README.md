@@ -20,13 +20,15 @@ syscalls // List of syscalls along with the arguments required.
 tools/
     - wand.py // Python script that generates bindings for syscall conversions. 
     - magic.*tmpl // Template files for .h and .c files with the necessary bindings.
+    - compile.sh // Compilation script.
+    - run.sh    // Run runopen.c
 ```
 
 ### Writing a syscall wrapper
 
 Consider the example of the `xstat_grate` syscall wrapper written with the new API:
 
-```
+```c
 int xstat_syscall(int cageid, char *pathname, struct stat *statbuf) {
 	return imfs_stat(cageid, pathname, statbuf);
 }
@@ -71,7 +73,7 @@ The full implementation of how these bindings are generated can be seen in `tool
 
 We begin with a list of syscall declarations, which give us extra information about the parameters of a given syscall. Some examples are below:
 
-```
+```js
 xstat = {
 	IN	char*	pathname
 	OUT	struct stat*	statbuf
