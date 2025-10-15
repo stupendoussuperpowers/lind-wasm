@@ -32,10 +32,13 @@ struct generic_args {
 	lvar_t arg6;
 };
 
-void grate_init(void);
-lvar_t l_alloc(int);
-void l_free(lvar_t);
+__atribute__((weak)) void grate_init(void);
+__atribute__((weak)) void grate_destroy(void);
+
 void register_handlers(int, int);
 int max(int, int);
+
+lvar_t l_alloc(int);
+void l_free(lvar_t);
 
 /* Types get attached down below */

@@ -1,15 +1,13 @@
 #include <stdio.h>
 #include <sys/types.h>
-#include <lind_syscall_num.h>
-#include "magic.h"
+#include <sys/stat.h>
 #include <string.h>
 
-#include <sys/stat.h>
-#include <sys/utsname.h>
+#include <lind_syscall_num.h>
+#include "magic.h"
 
 #include "imfs.h"
 
-#define	UNAME_SYSCALL	63
 
 int grate_syscalls[] = {OPEN_SYSCALL, XSTAT_SYSCALL, WRITE_SYSCALL, READ_SYSCALL, CLOSE_SYSCALL};
 int grate_syscalls_len = 5;

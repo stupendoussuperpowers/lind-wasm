@@ -32,22 +32,24 @@ struct generic_args {
 	lvar_t arg6;
 };
 
-void grate_init(void);
-lvar_t l_alloc(int);
-void l_free(lvar_t);
+__attribute__((weak)) void grate_init(void);
+__attribute__((weak)) void grate_destroy(void);
 void register_handlers(int, int);
 int max(int, int);
 
+lvar_t l_alloc(int);
+void l_free(lvar_t);
+
 /* Types get attached down below */
 __attribute__((weak)) int open_syscall(int cageid, char *pathname, int flags,
-                                       mode_t mode);
+				       mode_t mode);
 __attribute__((weak)) int close_syscall(int cageid, int fd);
 __attribute__((weak)) int read_syscall(int cageid, int fd, void *buf,
-                                       size_t count);
+				       size_t count);
 __attribute__((weak)) int write_syscall(int cageid, int fd, void *buf,
-                                        size_t count);
+					size_t count);
 __attribute__((weak)) int uname_syscall(int cageid, struct utsname *buf);
 __attribute__((weak)) int fstat_syscall(int cageid, int fd,
-                                        struct stat *statbuf);
+					struct stat *statbuf);
 __attribute__((weak)) int xstat_syscall(int cageid, char *pathname,
-                                        struct stat *statbuf);
+					struct stat *statbuf);

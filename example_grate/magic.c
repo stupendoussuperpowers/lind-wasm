@@ -73,10 +73,10 @@ int main(int argc, char *argv[]) {
 	}
     }
 
-    while(1) {}
     int status;
     while (wait(&status) > 0) {
         printf("[Grate | geteuid] terminated, status: %d\n", status);
+    	grate_destroy();
     }
 
     return 0;
@@ -84,220 +84,229 @@ int main(int argc, char *argv[]) {
 
 
 int open_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg2,
-               uint64_t arg2cage, uint64_t arg3, uint64_t arg3cage,
-               uint64_t arg4, uint64_t arg4cage, uint64_t arg5,
-               uint64_t arg5cage, uint64_t arg6, uint64_t arg6cage) {
-  if (!open_syscall) {
-    return -1;
-  }
+	       uint64_t arg2cage, uint64_t arg3, uint64_t arg3cage,
+	       uint64_t arg4, uint64_t arg4cage, uint64_t arg5,
+	       uint64_t arg5cage, uint64_t arg6, uint64_t arg6cage) {
+	if (!open_syscall) {
+		return -1;
+	}
 
-  mode_t mode = arg3;
+	mode_t mode = arg3;
 
-  int flags = arg2;
+	int flags = arg2;
 
-  char *pathname = malloc(256);
+	char *pathname = malloc(256);
 
-  if (pathname == NULL) {
-    perror("malloc failed");
-    exit(EXIT_FAILURE);
-  }
+	if (pathname == NULL) {
+		perror("malloc failed");
+		exit(EXIT_FAILURE);
+	}
 
-  copy_data_between_cages(thiscage, arg1cage, arg1, arg1cage,
-                          (uint64_t)pathname, thiscage, 256, 1);
+	copy_data_between_cages(thiscage, arg1cage, arg1, arg1cage,
+				(uint64_t)pathname, thiscage, 256, 1);
 
-  int ret = open_syscall(cageid, pathname, flags, mode);
+	int ret = open_syscall(cageid, pathname, flags, mode);
 
-  return ret;
+	free(pathname);
+
+	return ret;
 }
 
 
 int close_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage,
-                uint64_t arg2, uint64_t arg2cage, uint64_t arg3,
-                uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage,
-                uint64_t arg5, uint64_t arg5cage, uint64_t arg6,
-                uint64_t arg6cage) {
-  if (!close_syscall) {
-    return -1;
-  }
+		uint64_t arg2, uint64_t arg2cage, uint64_t arg3,
+		uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage,
+		uint64_t arg5, uint64_t arg5cage, uint64_t arg6,
+		uint64_t arg6cage) {
+	if (!close_syscall) {
+		return -1;
+	}
 
-  int fd = arg1;
+	int fd = arg1;
 
-  int ret = close_syscall(cageid, fd);
+	int ret = close_syscall(cageid, fd);
 
-  return ret;
+	return ret;
 }
 
 
 int read_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage, uint64_t arg2,
-               uint64_t arg2cage, uint64_t arg3, uint64_t arg3cage,
-               uint64_t arg4, uint64_t arg4cage, uint64_t arg5,
-               uint64_t arg5cage, uint64_t arg6, uint64_t arg6cage) {
-  if (!read_syscall) {
-    return -1;
-  }
+	       uint64_t arg2cage, uint64_t arg3, uint64_t arg3cage,
+	       uint64_t arg4, uint64_t arg4cage, uint64_t arg5,
+	       uint64_t arg5cage, uint64_t arg6, uint64_t arg6cage) {
+	if (!read_syscall) {
+		return -1;
+	}
 
-  size_t count = arg3;
+	size_t count = arg3;
 
-  void *buf = malloc(count);
+	void *buf = malloc(count);
 
-  if (buf == NULL) {
-    perror("malloc failed");
-    exit(EXIT_FAILURE);
-  }
+	if (buf == NULL) {
+		perror("malloc failed");
+		exit(EXIT_FAILURE);
+	}
 
-  int fd = arg1;
+	copy_data_between_cages(thiscage, arg2cage, arg2, arg2cage,
+				(uint64_t)buf, thiscage, count, 0);
 
-  int ret = read_syscall(cageid, fd, buf, count);
+	int fd = arg1;
 
-  fprintf(stderr, "\nOUTPUT ARG: %llu\n", arg2);
-  fprintf(stderr, "\nuint64_t [%llu], size [%d]\n", buf, count);
-  if (arg2 != 0) {
-    copy_data_between_cages(thiscage, arg2cage, (uint64_t)buf, thiscage, arg2,
-                            arg2cage, count, 0);
-  }
+	int ret = read_syscall(cageid, fd, buf, count);
 
-  free(buf);
+	if (arg2 != 0) {
+		copy_data_between_cages(thiscage, arg2cage, (uint64_t)buf,
+					thiscage, arg2, arg2cage, count, 0);
+	}
 
-  return ret;
+	free(buf);
+
+	return ret;
 }
 
 
 int write_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage,
-                uint64_t arg2, uint64_t arg2cage, uint64_t arg3,
-                uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage,
-                uint64_t arg5, uint64_t arg5cage, uint64_t arg6,
-                uint64_t arg6cage) {
-  if (!write_syscall) {
-    return -1;
-  }
+		uint64_t arg2, uint64_t arg2cage, uint64_t arg3,
+		uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage,
+		uint64_t arg5, uint64_t arg5cage, uint64_t arg6,
+		uint64_t arg6cage) {
+	if (!write_syscall) {
+		return -1;
+	}
 
-  size_t count = arg3;
+	size_t count = arg3;
 
-  void *buf = malloc(count);
+	void *buf = malloc(count);
 
-  if (buf == NULL) {
-    perror("malloc failed");
-    exit(EXIT_FAILURE);
-  }
+	if (buf == NULL) {
+		perror("malloc failed");
+		exit(EXIT_FAILURE);
+	}
 
-  copy_data_between_cages(thiscage, arg2cage, arg2, arg2cage, (uint64_t)buf,
-                          thiscage, count, 0);
+	copy_data_between_cages(thiscage, arg2cage, arg2, arg2cage,
+				(uint64_t)buf, thiscage, count, 0);
 
-  int fd = arg1;
+	int fd = arg1;
 
-  int ret = write_syscall(cageid, fd, buf, count);
+	int ret = write_syscall(cageid, fd, buf, count);
 
-  return ret;
+	free(buf);
+
+	return ret;
 }
 
 
 int uname_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage,
-                uint64_t arg2, uint64_t arg2cage, uint64_t arg3,
-                uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage,
-                uint64_t arg5, uint64_t arg5cage, uint64_t arg6,
-                uint64_t arg6cage) {
-  if (!uname_syscall) {
-    return -1;
-  }
+		uint64_t arg2, uint64_t arg2cage, uint64_t arg3,
+		uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage,
+		uint64_t arg5, uint64_t arg5cage, uint64_t arg6,
+		uint64_t arg6cage) {
+	if (!uname_syscall) {
+		return -1;
+	}
 
-  struct utsname *buf = malloc(sizeof(struct utsname));
+	struct utsname *buf = malloc(sizeof(struct utsname));
 
-  if (buf == NULL) {
-    perror("malloc failed");
-    exit(EXIT_FAILURE);
-  }
+	if (buf == NULL) {
+		perror("malloc failed");
+		exit(EXIT_FAILURE);
+	}
 
-  int ret = uname_syscall(cageid, buf);
+	copy_data_between_cages(thiscage, arg1cage, arg1, arg1cage,
+				(uint64_t)buf, thiscage, sizeof(struct utsname),
+				0);
 
-  fprintf(stderr, "\nOUTPUT ARG: %llu\n", arg1);
-  fprintf(stderr, "\nuint64_t [%llu], size [%d]\n", buf,
-          sizeof(struct utsname));
-  if (arg1 != 0) {
-    copy_data_between_cages(thiscage, arg1cage, (uint64_t)buf, thiscage, arg1,
-                            arg1cage, sizeof(struct utsname), 0);
-  }
+	int ret = uname_syscall(cageid, buf);
 
-  free(buf);
+	if (arg1 != 0) {
+		copy_data_between_cages(thiscage, arg1cage, (uint64_t)buf,
+					thiscage, arg1, arg1cage,
+					sizeof(struct utsname), 0);
+	}
 
-  return ret;
+	free(buf);
+
+	return ret;
 }
 
 
 int fstat_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage,
-                uint64_t arg2, uint64_t arg2cage, uint64_t arg3,
-                uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage,
-                uint64_t arg5, uint64_t arg5cage, uint64_t arg6,
-                uint64_t arg6cage) {
-  if (!fstat_syscall) {
-    return -1;
-  }
+		uint64_t arg2, uint64_t arg2cage, uint64_t arg3,
+		uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage,
+		uint64_t arg5, uint64_t arg5cage, uint64_t arg6,
+		uint64_t arg6cage) {
+	if (!fstat_syscall) {
+		return -1;
+	}
 
-  struct stat *statbuf = malloc(sizeof(struct stat));
+	struct stat *statbuf = malloc(sizeof(struct stat));
 
-  if (statbuf == NULL) {
-    perror("malloc failed");
-    exit(EXIT_FAILURE);
-  }
+	if (statbuf == NULL) {
+		perror("malloc failed");
+		exit(EXIT_FAILURE);
+	}
 
-  int fd = arg1;
+	copy_data_between_cages(thiscage, arg2cage, arg2, arg2cage,
+				(uint64_t)statbuf, thiscage,
+				sizeof(struct stat), 0);
 
-  int ret = fstat_syscall(cageid, fd, statbuf);
+	int fd = arg1;
 
-  fprintf(stderr, "\nOUTPUT ARG: %llu\n", arg2);
-  fprintf(stderr, "\nuint64_t [%llu], size [%d]\n", statbuf,
-          sizeof(struct stat));
-  if (arg2 != 0) {
-    copy_data_between_cages(thiscage, arg2cage, (uint64_t)statbuf, thiscage,
-                            arg2, arg2cage, sizeof(struct stat), 0);
-  }
+	int ret = fstat_syscall(cageid, fd, statbuf);
 
-  free(statbuf);
+	if (arg2 != 0) {
+		copy_data_between_cages(thiscage, arg2cage, (uint64_t)statbuf,
+					thiscage, arg2, arg2cage,
+					sizeof(struct stat), 0);
+	}
 
-  return ret;
+	free(statbuf);
+
+	return ret;
 }
 
 
 int xstat_grate(uint64_t cageid, uint64_t arg1, uint64_t arg1cage,
-                uint64_t arg2, uint64_t arg2cage, uint64_t arg3,
-                uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage,
-                uint64_t arg5, uint64_t arg5cage, uint64_t arg6,
-                uint64_t arg6cage) {
-  if (!xstat_syscall) {
-    return -1;
-  }
+		uint64_t arg2, uint64_t arg2cage, uint64_t arg3,
+		uint64_t arg3cage, uint64_t arg4, uint64_t arg4cage,
+		uint64_t arg5, uint64_t arg5cage, uint64_t arg6,
+		uint64_t arg6cage) {
+	if (!xstat_syscall) {
+		return -1;
+	}
 
-  struct stat *statbuf = malloc(sizeof(struct stat));
+	struct stat *statbuf = malloc(sizeof(struct stat));
 
-  if (statbuf == NULL) {
-    perror("malloc failed");
-    exit(EXIT_FAILURE);
-  }
+	if (statbuf == NULL) {
+		perror("malloc failed");
+		exit(EXIT_FAILURE);
+	}
 
-  char *pathname = malloc(256);
+	copy_data_between_cages(thiscage, arg2cage, arg2, arg2cage,
+				(uint64_t)statbuf, thiscage,
+				sizeof(struct stat), 0);
 
-  if (pathname == NULL) {
-    perror("malloc failed");
-    exit(EXIT_FAILURE);
-  }
+	char *pathname = malloc(256);
 
-  copy_data_between_cages(thiscage, arg1cage, arg1, arg1cage,
-                          (uint64_t)pathname, thiscage, 256, 1);
+	if (pathname == NULL) {
+		perror("malloc failed");
+		exit(EXIT_FAILURE);
+	}
 
-  int ret = xstat_syscall(cageid, pathname, statbuf);
-  fprintf(stderr,
-          "\n xstat returned: UID: %d | GID: %d | Index: %d | Size: %d\n",
-          statbuf->st_uid, statbuf->st_gid, statbuf->st_ino, statbuf->st_size);
+	copy_data_between_cages(thiscage, arg1cage, arg1, arg1cage,
+				(uint64_t)pathname, thiscage, 256, 1);
 
-  fprintf(stderr, "\nOUTPUT ARG: %llu\n", arg2);
-  fprintf(stderr, "\nuint64_t [%llu], size [%d]\n", statbuf,
-          sizeof(struct stat));
-  if (arg2 != 0) {
-    copy_data_between_cages(thiscage, arg2cage, (uint64_t)statbuf, thiscage,
-                            arg2, arg2cage, sizeof(struct stat), 0);
-  }
+	int ret = xstat_syscall(cageid, pathname, statbuf);
 
-  free(statbuf);
+	if (arg2 != 0) {
+		copy_data_between_cages(thiscage, arg2cage, (uint64_t)statbuf,
+					thiscage, arg2, arg2cage,
+					sizeof(struct stat), 0);
+	}
 
-  return ret;
+	free(statbuf);
+	free(pathname);
+
+	return ret;
 }
 

@@ -15,92 +15,150 @@ This is an example of a grate written with the new APIs. Runs the in-memory file
 imfs_grate.c // Grate source code with wrappers for individual syscalls.
 imfs.* // IMFS source code.
 runopen.c // Sample cage for testing
+syscalls // List of syscalls along with the arguments required.
 
 tools/
     - wand.py // Python script that generates bindings for syscall conversions. 
     - magic.*tmpl // Template files for .h and .c files with the necessary bindings.
-    - syscall_descs // List of syscalls along with the arguments required.
 ```
 
 ### Writing a syscall wrapper
 
-Consider the example of the `open_grate` syscall wrapper written with the new API:
+Consider the example of the `xstat_grate` syscall wrapper written with the new API:
 
 ```
-int _open_grate(struct open_args args) {
-	uint64_t cageid = args.cageid;
-
-	lvar_t pathname = args.pathname;
-	lvar_t flags = args.flags;
-	lvar_t mode = args.mode;
-	
-	lvar_t _path = l_alloc(256);
-
-	// src, dst, len, type
-	COPY(pathname, _path, 256, 1);
-
-	int ifd = imfs_open(cageid, (char *)_path.value, flags.value, mode.value);
-
-	l_free(_path);
-
-	return ifd;
+int xstat_syscall(int cageid, char *pathname, struct stat *statbuf) {
+	return imfs_stat(cageid, pathname, statbuf);
 }
 ```
 
-Here, `lvar_t` is:
+The syscall wrapper only has to deal with parameters that a regular syscall declaration would take, along with the `cageid` parameter which points to the id of the cage that called this syscall.
 
+Handling of copying data in or out of cages is handled internally. In this example, `pathname` already points to a valid memory address in this grate, and anything written to `*statbuf` is copied out to the appropriate location in the calling cage's memory.
+
+For an example of a complete grate file, view `imfs_grate.c`. A short example is below:
+
+```c
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#include <lind_syscall_num.h>
+#include "magic.h" // These are the headers required to use the bindings.
+
+#include "imfs.h"
+
+// grate_syscalls* are extern'd variables. These should be a list of syscall nums.
+int grate_syscalls[] = {XSTAT_SYSCALL};
+int grate_syscalls_len = 1;
+
+// Optional initialization and destroy logic or the grate.
+void grate_init() {
+	imfs_init();
+}
+
+void grate_destroy() {
+    printf("IMFS Exiting\n");
+}
+
+int xstat_syscall(int cageid, char *pathname, struct stat *statbuf) {
+	return imfs_stat(cageid, pathname, statbuf);
+}
 ```
-struct lvar_t {
-    uint64_t value;
-    uint64_t cage;
-};
-```
-
-And `open_args` is:
-
-```
-struct open_args {
-    uint64_t cageid;
-    lvar_t pathname;
-    lvar_t flags;
-    lvar_t mode;
-    // Padding
-};
-```
-
-To access the value of a given input, we use `args.<parameter>.value`. 
-
-With this approach, we don't need to remember the order of arguments, and  we do not expose unnecessary parameters. 
-
-Typically the use of the `argXcage` parameter is only useful for lind's runtime in order for address translations, and not for an individual syscall's implementation.
-
-In order to copy data between cages, we can use the macro `COPY(src, dst, len, mode)` which takes as input two `lvar_t` variables. This macro internally calls the `copy_data_between_cages()` function with the source and destination cages interpolated from the arguments passed to it.
-
-`l_alloc` and `l_free` are simple wrappers over `malloc` and `free` but they return a `lvar_t` struct instead. 
 
 ### Internals
 
-The current approach for generating this bindings is just proof-of-concept, which can be improved significantly. It uses a python script and some template files. 
+The full implementation of how these bindings are generated can be seen in `tools/wand.py`, and `tools/compile.sh`.
 
-In order to convert this function into a type that `register_handler` expects, we need to generate some bindings. 
-
-First, we need to generate the `<syscall>_args` structs. Second, we need to generate a function that does roughly the following:
+We begin with a list of syscall declarations, which give us extra information about the parameters of a given syscall. Some examples are below:
 
 ```
-int <syscall>_grate(uint64_t cageid, ...[argX, argXcage]...) {
-    struct arguments = (<syscall_grate>) {
-        .cageid = cageid,
-        ...
-    };
-    
-    return _open_grate(arguments);
+xstat = {
+	IN	char*	pathname
+	OUT	struct stat*	statbuf
+}
+
+read = {
+	N	int	fd
+	OUT	void*	buf[count]
+	N	size_t	count
+}
+
+write = {
+	N	int	fd 
+	IN	void*	buf[count]
+	N	size_t	count
 }
 ```
 
-Currently this is managed by the `magic.*tmpl` and the `wand.py` python scripts. This approach can be changed later. 
+The `IN/OUT/N` tags tell us when or if to call `copy_data_between_cages` for a particular argument. This is extrapolated using the type of the argument as listed on the man pages. For e.g. `const` pointers are not copied out. Reguar pointers are copied in before the syscall and copied out after it (useful for calls such as `recvmsg()`). Integer and integer-aliased types are not copied. 
 
-The compilation script first reads the `syscall_desc` file to generate the required argument structs and appends it to the `magic.h` file. It then generates the wrapper functions and appends it to `magic.c`. These files are compiled along with the source code for the grates when generating the final `.wasm` binary. 
+These tagged structs allow us to generate the `<syscall>_grate` functions that eventually call the user-defined wrappers. Some examples are cited below, for an example generated binding, view `magic.c` and `magic.h`.
 
-The `syscall_desc` consists of syscall descriptions in the following format:
 
-`open = pathname, flags, mode`
+```c
+// Close doesn't require any copying of data. 
+int close_grate(uint64_t cageid, ..., uint64_t arg6cage) {
+  if (!close_syscall) {
+    return -1;
+  }
+
+  int fd = arg1;
+
+  int ret = close_syscall(cageid, fd);
+
+  return ret;
+}
+```
+
+```c
+// XSTAT requires us to copy over the "pathname" before we call our wrapper, and call copy on "statbuf" to return the result to the calling cage.
+int xstat_grate(uint64_t cageid, ..., uint64_t arg6cage) {
+  if (!xstat_syscall) {
+    return -1;
+  }
+
+  struct stat *statbuf = malloc(sizeof(struct stat));
+
+  if (statbuf == NULL) {
+    perror("malloc failed");
+    exit(EXIT_FAILURE);
+  }
+
+  copy_data_between_cages(thiscage, arg2cage, arg2, arg2cage, (uint64_t)statbuf,
+                          thiscage, sizeof(struct stat), 0);
+
+  char *pathname = malloc(256);
+
+  if (pathname == NULL) {
+    perror("malloc failed");
+    exit(EXIT_FAILURE);
+  }
+
+  copy_data_between_cages(thiscage, arg1cage, arg1, arg1cage,
+                          (uint64_t)pathname, thiscage, 256, 1);
+
+  int ret = xstat_syscall(cageid, pathname, statbuf);
+
+  if (arg2 != 0) {
+    copy_data_between_cages(thiscage, arg2cage, (uint64_t)statbuf, thiscage,
+                            arg2, arg2cage, sizeof(struct stat), 0);
+  }
+
+  free(statbuf);
+  free(pathname);
+
+  return ret;
+}
+```
+
+#### Notes on dealing with a `buffer` vs `char *`:
+
+When allocating memory for "strings", there are two distinct cases to handle. 
+
+For a `char *`, for now we assign a constant `256` bytes of memory and copies are done using `StrCpy` mode (relying on `\0` as the terminating character). Example - `char * pathname` in `open`)
+
+For buffers, (`read/write` has `void buf[count]`), we allocate the mentioned size of memory, and use `RawCpy` to copy exactly this size. 
+
+For non-string pointers (such as `struct stat *statbuf`), we allocate `sizeof(<type>)` bytes, and use `RawCpy`.
+
+The current bindings generator implicitly handles all these cases.
