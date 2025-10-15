@@ -1,0 +1,35 @@
+open = {
+	IN	char*	pathname
+	N	int	flags 
+	N	mode_t	mode
+}
+
+close = {
+	N	int	fd
+}
+
+read = {
+	N	int	fd
+	OUT	void*	buf[count]
+	N	size_t	count
+}
+
+write = {
+	N	int	fd 
+	IN	void*	buf[count]
+	N	size_t	count
+}
+
+uname = {
+        OUT	struct utsname*	buf
+}
+
+fstat = {
+        N	int	fd
+        OUT	struct stat*	statbuf
+}
+
+xstat = {
+	IN	char*	pathname
+	OUT	struct stat*	statbuf
+}
