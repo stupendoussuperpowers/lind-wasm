@@ -33,3 +33,11 @@ xstat = {
 	IN	char*	pathname
 	OUT	struct stat*	statbuf
 }
+
+geteuid = {
+
+}
+
+getegid = {
+
+}

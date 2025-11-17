@@ -98,7 +98,10 @@ class Syscall:
 
     def function(self):
         self.process()
-        argnames = 'cageid, ' + ', '.join([i.name for i in self.args])
+        if len(self.args) == 0 :
+            argnames = "cageid"
+        else:
+            argnames = 'cageid, ' + ', '.join([i.name for i in self.args])
         return clang_format(
             FUNC.format(name=self.name, pre=self.pre,
                         post=self.post, argnames=argnames,
@@ -107,8 +110,11 @@ class Syscall:
 
     def header(self):
         self.process()
-        argnames = 'int cageid, ' + \
-            ', '.join([f'{i.typ} {i.name}' for i in self.args])
+        if len(self.args) != 0:
+            argnames = 'int cageid, ' + \
+                ', '.join([f'{i.typ} {i.name}' for i in self.args])
+        else:
+            argnames = 'int cageid'
         header = f'__attribute__((weak)) int {self.name}_syscall({argnames});'
         return header
 
@@ -125,8 +131,10 @@ class Args:
         self.name = name
         self.ctype = "0"
         if not size:
-            self.size = "256" if "char" in self.typ else f"sizeof({
-                self.typ.replace('*', '')})"
+            if "char" in self.typ:
+                self.size = "256"
+            else:
+                self.size = f"sizeof({self.typ.replace('*', '')})"
             if "char" in self.typ:
                 self.ctype = "1"
         else:

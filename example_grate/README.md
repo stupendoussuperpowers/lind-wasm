@@ -1,20 +1,35 @@
-This is an example of a grate written with the new APIs. Runs the in-memory file system grate with an example program.
+This folder contains example grate implementations, as well as an example runner for grate-cage configurations.
 
 ### Compile
 
-`./tools/compile.sh`
+`./tools/compile.sh <grate source files>`
 
 ### Run
 
-- Compile `runopen.c` into `LIND_ROOT`
-- `./tools/run.sh`
+- Compile all cages present in the `cage/` folder, and place them into `LIND_ROOT` using the `scripts/lind_compile.sh` command.
+- Compile all grates present in the `grates/` folder, and place them into `LIND_ROOT`.
+- Run an example grate configuration using `./tools/run.sh`. This will run the following configuration:
+
+```
+geteuid_grate:
+    getegid_grate.wasm:
+        bash -c "etest & imfs_grate runopen & getgid_grate gidtest" 
+```
 
 ### File Structure 
 
 ```
-imfs_grate.c // Grate source code with wrappers for individual syscalls.
-imfs.* // IMFS source code.
-runopen.c // Sample cage for testing
+grates/
+    imfs_grate.c // Grate source code with wrappers for individual syscalls.
+    imfs.* // IMFS source code.
+    ... // Other Grate examples 
+
+cages/
+    mash.c // Barebones, minimal bash source code. 
+    etest.c 
+    runopen.c 
+    ... // Example cage source code.
+
 syscalls // List of syscalls along with the arguments required.
 
 tools/

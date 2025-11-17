@@ -18,18 +18,6 @@ This is an auto-generated file. Do not modify.
 extern int grate_syscalls[];
 extern size_t grate_syscalls_len;
 
-lvar_t l_alloc(int size) {
-	char *val = malloc(size);
-	return (lvar_t) {
-		.value = (uint64_t)val,
-		.cage = thiscage,
-	};
-}
-
-void l_free(lvar_t ptr) {
-	free((char *)ptr.value);
-}
-
 void register_handlers(int cageid, int grateid) {
 	int ret;
 	for(int i=0; i < grate_syscalls_len; i++) {
@@ -38,47 +26,43 @@ void register_handlers(int cageid, int grateid) {
 	}
 }
 
-int max(int a, int b) {
-	return a > b ? a : b;
-}
-
-// Main function will always be same in all grates
 int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Usage: %s <cage_file> <grate_file> <cage_file> [...]\n", argv[0]);
-        exit(EXIT_FAILURE);
-    }
-    int grateid = getpid();
-    printf("grateid: %d\n", grateid);
-    for (int i = 1; i < (argc < 3 ? argc : 3); i++) {
-        pid_t pid = fork();
-        if (pid < 0) {
-            perror("fork failed");
-            exit(EXIT_FAILURE);
-        } else if (pid == 0) {
-            // will always be cage.
-            if (i % 2 != 0) {
-                int cageid = getpid();
-               	printf("cageid: %d\n", cageid); 
-		register_handlers(cageid, grateid);	
-	    }
-
-	    printf("Execing %s\n", argv[i]);
-            if (execv(argv[i], &argv[i]) == -1) {
-		printf("Execv failed!\n");
-                exit(EXIT_FAILURE);
-            }
-	} else {
-		if (grate_init) grate_init();
+	if (argc < 2) {
+		fprintf(stderr, "Usage: %s <cage_file>\n", argv[0]);
+		exit(EXIT_FAILURE);
 	}
-    }
+	
+	int grateid = getpid();
+	printf("grateid: %d\n", grateid);
+	
+	pid_t pid = fork();
+	if (pid < 0) {
+		perror("fork failed");
+		exit(EXIT_FAILURE);
+	} else if (pid == 0) {
+		int cageid = getpid();
+		printf("cageid: %d\n", cageid);
+		register_handlers(cageid, grateid);
 
-    int status;
-    while (wait(&status) > 0) {
-        printf("[Grate | geteuid] terminated, status: %d\n", status);
-    	if (grate_destroy) grate_destroy();
-    }
+		sleep(3);
+		printf("Execing %s\n", argv[1]);
+		if (execv(argv[1], &argv[1]) == -1) {
+			printf("Execv failed\n");
+			exit(EXIT_FAILURE);
+		}
+	} else {
+		grate_init();
+	}
 
-    return 0;
+	int status;
+    	while (wait(&status) > 0) {
+        	printf("[Grate | geteuid] terminated, status: %d\n", status);
+    		grate_destroy();
+    	}
+
+    	return 0;
 }
+
+
+/* Auto-generated from grate definition file */
 

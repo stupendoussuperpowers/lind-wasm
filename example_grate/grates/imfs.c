@@ -644,7 +644,6 @@ __imfs_stat(int cage_id, Node *node, struct stat *statbuf)
 	if (node == NULL)
 		return -1;
 
-	LOG("\nUID: %d | GID: %d | Index: %d | Size: %d\n", GET_UID, GET_GID, node->index, node->total_size);
 	*statbuf = (struct stat) {
 		.st_dev = GET_DEV,
 		.st_ino = node->index,
@@ -667,9 +666,6 @@ __imfs_stat(int cage_id, Node *node, struct stat *statbuf)
 		.st_ctim = node->ctime,
 #endif
 	};
-
-	LOG("\nuid: %d | gid:%d | index: %d | size: %d\n", statbuf->st_uid, 
-			statbuf->st_gid, statbuf->st_ino, statbuf->st_size);
 
 	return 0;
 }

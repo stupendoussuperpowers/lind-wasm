@@ -9,11 +9,25 @@
 #include "imfs.h"
 
 
-int grate_syscalls[] = {OPEN_SYSCALL, XSTAT_SYSCALL, WRITE_SYSCALL, READ_SYSCALL, CLOSE_SYSCALL};
-int grate_syscalls_len = 5;
+int grate_syscalls[] = {OPEN_SYSCALL, CLOSE_SYSCALL};
+int grate_syscalls_len = 2;
 
 void grate_init() {
+	printf("IMFS initing...\n");
 	imfs_init();
+	printf("IMFS init'd\n");
+}
+
+void grate_destroy() {
+	printf("IMFS exiting.\n");
+}
+
+int geteuid_syscall(int cageid) {
+	return 546;
+}
+
+int getegid_syscall(int cageid) {
+	return 556;
 }
 
 int open_syscall(int cageid, char* pathname, int flags, mode_t mode) {
@@ -24,7 +38,7 @@ int open_syscall(int cageid, char* pathname, int flags, mode_t mode) {
 
 int close_syscall(int cageid, int fd) {
 	int ret = imfs_close(cageid, fd);
-	fprintf(stderr, "\nCLOSE(%d) = %d\n", fd);
+	fprintf(stderr, "\nCLOSE(%d) = %d\n", fd, ret);
 	return ret;
 }
 
@@ -33,13 +47,13 @@ int write_syscall(int cageid, int fd, void *buf, size_t count) {
 		return write(2, buf, count);
 	}
 	int ret = imfs_write(cageid, fd, buf, count);
-	fprintf(stderr, "\nWRITE(%d, %s, %d) = %d\n", fd, buf, count, ret);
+	fprintf(stderr, "\nWRITE(%d, %s, %zu) = %d\n", fd, (char *)buf, count, ret);
 	return ret;
 }
 
 int read_syscall(int cageid, int fd, void *buf, size_t count) {
 	int ret = imfs_read(cageid, fd, buf, count);
-	fprintf(stderr, "\nREAD(%d, %s, %d) = %d\n", fd, buf, count, ret);
+	fprintf(stderr, "\nREAD(%d, %s, %zu) = %d\n", fd, (char *)buf, count, ret);
 	return ret;
 }
 
