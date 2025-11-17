@@ -8,8 +8,8 @@
 
 int main() {
 	printf("\n[PROG]: Top\n");
-        int fd = open("etest.wasm", O_WRONLY, 0755);
-        printf("\n[PROG]: FD: %d\n", fd);
+	int fd = open("etest.wasm", O_WRONLY, 0755);
+	printf("\n[PROG]: FD: %d\n", fd);
 
 	close(fd);
 	return 0;
