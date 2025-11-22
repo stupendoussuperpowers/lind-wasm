@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use anyhow::Result;
+use once_cell::sync::Lazy;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use sysdefs::constants::lind_platform_const::{UNUSED_ARG, UNUSED_ID};
@@ -19,10 +20,13 @@ use wasmtime_lind_multi_process::{clone_constants::CloneArgStruct, get_memory_ba
 // `UNUSED_ID` / `UNUSED_ARG` / `UNUSED_NAME` is a placeholder argument
 // for functions that require a fixed number of parameters but do not utilize
 // all of them.
+use wasmtime_lind_3i::take_gratefn_wasm;
 use wasmtime_lind_utils::lind_syscall_numbers::{CLONE_SYSCALL, EXEC_SYSCALL, EXIT_SYSCALL};
 
 // lind-common serves as the main entry point when lind_syscall. Any syscalls made in glibc would reach here first,
 // then the syscall would be dispatched into rawposix, or other crates under wasmtime, depending on the syscall, to perform its job
+
+// pub static NEXT_CAGEID: Lazy<AtomicU64> = Lazy::new(|| AtomicU64::new(0));
 
 #[derive(Clone)]
 // stores some attributes associated with current runnning wasm instance (i.e. cage)
@@ -155,7 +159,7 @@ impl LindCommonCtx {
     pub fn fork(&self) -> Self {
         // cageid is automatically incremented here
         let next_pid = self.next_cage_id().unwrap();
-
+        // NEXT_CAGEID.fetch_add(1, Ordering::SeqCst);
         let forked_ctx = Self {
             pid: next_pid as i32,
             next_cageid: self.next_cageid.clone(),
@@ -189,20 +193,71 @@ pub fn add_to_linker<
               arg5: u64,
               arg6: u64|
               -> i32 {
+
+            let retval: i32;
+           /* 
+            if call_number == 107 {
+                // let mut pid = NEXT_CAGEID.load(Ordering::SeqCst);
+                // pid = pid + 1;
+                let pid = 2;
+                retval = make_syscall(
+                    pid as u64,
+                    call_number as u64,
+                    call_name as u64,
+                    pid as u64, // Set target_cageid same with self_cageid by defualt
+                    arg1,
+                    pid as u64,
+                    arg2,
+                    pid as u64,
+                    arg3,
+                    pid as u64,
+                    arg4,
+                    pid as u64,
+                    arg5,
+                    pid as u64,
+                    arg6,
+                    pid as u64,
+                )
+            } else { */ 
+            
             let host = caller.data().clone();
+            
+            let start = std::time::Instant::now();
             let ctx = get_cx(&host);
 
-            let retval = ctx.lind_syscall(
-                call_number,
-                call_name,
-                &mut caller,
-                arg1,
-                arg2,
-                arg3,
-                arg4,
-                arg5,
-                arg6,
-            );
+            if call_number == 107 {
+                // println!("cage: {:#?}, callno: 107, get_cx: {:#?}", ctx.pid, start.elapsed()); 
+                retval = make_syscall(
+                    ctx.pid as u64, 
+                    call_number as u64, 
+                    call_name as u64, 
+                    ctx.pid as u64,
+                    arg1, 
+                    ctx.pid as u64, 
+                    arg2, 
+                    ctx.pid as u64, 
+                    arg3, 
+                    ctx.pid as u64, 
+                    arg4, 
+                    ctx.pid as u64, 
+                    arg5, 
+                    ctx.pid as u64, 
+                    arg6, 
+                    ctx.pid as u64
+                );
+            } else {
+                retval = ctx.lind_syscall(
+                    call_number,
+                    call_name,
+                    &mut caller,
+                    arg1,
+                    arg2,
+                    arg3,
+                    arg4,
+                    arg5,
+                    arg6,
+                );
+            }
 
             // TODO: add a signal check here as Linux also has a signal check when transition from kernel to userspace
             // However, Asyncify management in this function should be carefully rethinking if adding signal check here
@@ -231,15 +286,18 @@ pub fn add_to_linker<
         "register-syscall",
         move |targetcage: u64,
               targetcallnum: u64,
-              handlefunc_index_in_this_grate: u64,
-              this_grate_id: u64|
+              handlefunc_flag: u64,
+              this_grate_id: u64,
+              in_grate_fn_ptr_u64: u64|
               -> i32 {
+            let entry = take_gratefn_wasm(this_grate_id).unwrap();
+
             register_handler(
-                UNUSED_ARG,
+                in_grate_fn_ptr_u64,
                 targetcage,
                 targetcallnum,
-                UNUSED_ID,
-                handlefunc_index_in_this_grate,
+                entry as u64,
+                handlefunc_flag,
                 this_grate_id,
                 UNUSED_ARG,
                 UNUSED_ID,
