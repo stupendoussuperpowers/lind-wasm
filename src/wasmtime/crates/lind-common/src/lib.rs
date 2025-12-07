@@ -179,6 +179,30 @@ pub fn add_to_linker<
               arg6: u64,
               arg6cageid: u64|
               -> i32 {
+   
+            if call_number == 107 {
+                let r = make_syscall(
+                    self_cageid,
+                    call_number as u64,
+                    call_name as u64,
+                    target_cageid,
+                    arg1,
+                    arg1cageid,
+                    arg2,
+                    arg2cageid,
+                    arg3,
+                    arg3cageid,
+                    arg4,
+                    arg4cageid,
+                    arg5,
+                    arg5cageid,
+                    arg6,
+                    arg6cageid,
+                );
+
+                return r;
+            }
+
             let host = caller.data().clone();
             let ctx = get_cx(&host);
 
