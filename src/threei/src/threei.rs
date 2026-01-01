@@ -870,7 +870,7 @@ pub fn copy_data_between_cages(
             }
             // Try to compute actual string length within limit
             let max_scan = len as usize;
-            let host_src_try = sc_convert_uaddr_to_host(srcaddr, srccage, thiscage);
+            let host_src_try = srcaddr;
             if host_src_try == 0 {
                 eprintln!("[3i|copy] host_src null");
                 return threei_const::ELINDAPIABORTED;
@@ -903,8 +903,8 @@ pub fn copy_data_between_cages(
     }
 
     // Translate user virtual addrs to host pointers
-    let host_src_addr = sc_convert_uaddr_to_host(srcaddr, srccage, thiscage);
-    let host_dest_addr = sc_convert_uaddr_to_host(destaddr, destcage, thiscage);
+    let host_src_addr = srcaddr;
+    let host_dest_addr = destaddr;
     if host_src_addr == 0 || host_dest_addr == 0 {
         // src addr or dest addr is null
         eprintln!("[3i|copy] host addr translate failed");
