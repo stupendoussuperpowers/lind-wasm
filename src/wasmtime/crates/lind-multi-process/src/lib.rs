@@ -365,23 +365,6 @@ impl<
             UNUSED_ID,
         );
 
-        copy_handler_table_to_cage(
-            UNUSED_ARG,
-            child_cageid as u64,
-            self.pid as u64,
-            UNUSED_ID,
-            UNUSED_ARG,
-            UNUSED_ID,
-            UNUSED_ARG,
-            UNUSED_ID,
-            UNUSED_ARG,
-            UNUSED_ID,
-            UNUSED_ARG,
-            UNUSED_ID,
-            UNUSED_ARG,
-            UNUSED_ID,
-        );
-
         // use the same engine for parent and child
         let engine = self.module.engine().clone();
 
