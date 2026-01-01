@@ -9,3 +9,7 @@ clang+llvm-*
 #Ignore Build artifacts
 src/glibc/build/
 src/tmp/
+
+**/target/
+
+.DS_Store
