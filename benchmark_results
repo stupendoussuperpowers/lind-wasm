@@ -1,0 +1,12 @@
+================
+Benchmark: src/tmp/benchmarks/close.c
+Linux:Loop Count: 10000000 | Avg Time: 77 ns
+Lind (RawPOSIX):Loop Count: 10000000 | Avg Time: 61 ns
+================
+Benchmark: src/tmp/benchmarks/open-close.c
+Linux:Loop Count: 1024 | Avg Time: 986 ns
+Lind (RawPOSIX):Loop Count: 1024 | Avg Time: 6690 ns
+================
+Benchmark: src/tmp/benchmarks/sfi-penalty.c
+Linux:Loop Count: 10000000 | Avg Time: 622 ns
+Lind (RawPOSIX):Loop Count: 10000000 | Avg Time: 2223 ns
