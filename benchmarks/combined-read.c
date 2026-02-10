@@ -4,7 +4,8 @@
 #include <unistd.h>
 #include <time.h>
 
-#define LOOP_COUNT 10000000
+#define LOOP_COUNT 1000000
+#define MAX 5000
 
 long long gettimens() {
 	struct timespec tp;
@@ -12,32 +13,26 @@ long long gettimens() {
 	return (long long)tp.tv_sec * 1000000000LL + tp.tv_nsec;
 }
 
-unsigned long long fibonacci(int n) {
-	if (n <= 1)
-		return n;
-	volatile unsigned long long a = 0, b = 1, c;
-	for (int i = 2; i <= n; i++) {
-		c = a + b;
-		a = b;
-		b = c;
-	}
-	return b;
-}
+void read_size(size_t count) {
+	char buf[MAX];
 
-int main() {
-	unsigned long long sum = 0;
+	int fd = open("file-read.txt", O_RDONLY, 0);
 
 	long long start_time = gettimens();
-
 	for (int i = 0; i < LOOP_COUNT; i++) {
-		sum += fibonacci(1000);
+		pread(fd, buf, count, 0);
 	}
-
 	long long end_time = gettimens();
 
 	long long avg_time = (end_time - start_time) / LOOP_COUNT;
-	fprintf(stderr, "Loop Count: %d | Avg Time: %lld ns\n", LOOP_COUNT,
-		avg_time);
+	fprintf(stderr, "Read [%ld]\tLoops: %d | Avg Time: %lld ns\n", count,
+		LOOP_COUNT, avg_time);
 
-	return 0;
+	close(fd);
+	fflush(stderr);
+}
+
+int main(int argc, char *argv[]) {
+	read_size(10);
+	read_size(4096);
 }
