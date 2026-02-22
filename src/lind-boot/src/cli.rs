@@ -15,9 +15,13 @@ pub struct CliOptions {
     #[arg(long)]
     pub precompile: bool,
 
-    /// Force detailed wasm backtrace parsing/symbolization
-    #[arg(long)]
-    pub backtrace: bool,
+    /// Enables wasmtime backtrace details. Equivalent to wasmtime binary's
+    /// WASMTIME_BACKTRACE_DETAILS=1 environment variable.
+    ///
+    /// Does not need any special requirements for .wasm files, for .cwasm files, this configuration must
+    /// remain the same during compile and run.
+    #[arg(long = "wasmtime-backtrace")]
+    pub wasmtime_backtrace: bool,
 
     /// First item is WASM file (argv[0]), rest are program args (argv[1..])
     ///
