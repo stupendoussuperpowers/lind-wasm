@@ -15,6 +15,10 @@ pub struct CliOptions {
     #[arg(long)]
     pub precompile: bool,
 
+    /// Force detailed wasm backtrace parsing/symbolization
+    #[arg(long)]
+    pub backtrace: bool,
+
     /// First item is WASM file (argv[0]), rest are program args (argv[1..])
     ///
     /// Example:
@@ -31,6 +35,21 @@ pub struct CliOptions {
     /// cause the environment variable `FOO` to be inherited.
     #[arg(long = "env", number_of_values = 1, value_name = "NAME[=VAL]", value_parser = parse_env_var)]
     pub vars: Vec<(String, Option<String>)>,
+
+    /// Enable low-overhead cycle counters (requires `lind_perf` feature)
+    #[cfg(feature = "lind_perf")]
+    #[arg(long)]
+    pub perf: bool,
+
+    /// Print cycle counter report at process end (requires `lind_perf` feature)
+    #[cfg(feature = "lind_perf")]
+    #[arg(long)]
+    pub perf_report: bool,
+
+    /// Timer backend for `--perf`: `rdtsc` or `clock_gettime` (requires `lind_perf` feature)
+    #[cfg(feature = "lind_perf")]
+    #[arg(long, value_name = "SOURCE")]
+    pub perf_source: Option<String>,
 }
 
 pub fn parse_env_var(s: &str) -> Result<(String, Option<String>), String> {

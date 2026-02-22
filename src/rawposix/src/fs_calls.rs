@@ -2,6 +2,7 @@ use cage::{
     get_cage, get_shm_length, is_mmap_error, new_shm_segment, round_up_page, shmat_helper,
     shmdt_helper, MemoryBackingType, VmmapOps, HEAP_ENTRY_INDEX, SHM_METADATA,
 };
+use crate::perf;
 use dashmap::mapref::entry::Entry::{Occupied, Vacant};
 use fdtables;
 use libc::c_void;
@@ -207,6 +208,9 @@ pub extern "C" fn close_syscall(
     arg6: u64,
     arg6_cageid: u64,
 ) -> i32 {
+    #[cfg(feature = "lind_perf")]
+    lind_perf::scope!(perf::enabled::CLOSE_SYSCALL);
+
     if !(sc_unusedarg(arg2, arg2_cageid)
         && sc_unusedarg(arg3, arg3_cageid)
         && sc_unusedarg(arg4, arg4_cageid)

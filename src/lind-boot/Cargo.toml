@@ -7,6 +7,12 @@ edition = "2024"
 disable_signals = []
 secure = ["typemap/secure"]
 lind_debug = ["wasmtime-lind-common/lind_debug"]
+lind_perf = [
+    "dep:lind-perf",
+    "threei/lind_perf",
+    "rawposix/lind_perf",
+    "wasmtime-lind-common/lind_perf",
+]
 
 [dependencies]
 wasmtime-lind-common = { path = "../wasmtime/crates/lind-common" }
@@ -28,3 +34,4 @@ anyhow = { version = "1.0.66", default-features = false }
 cap-std = { version = "3.4.2", default-features = false }
 clap = { version = "4", features = ["derive"] }
 cfg-if = "1.0"
+lind-perf = { path = "../wasmtime/crates/lind-perf", optional = true }

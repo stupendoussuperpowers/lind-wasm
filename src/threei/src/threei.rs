@@ -14,6 +14,7 @@ use crate::handler_table::{
     _check_cage_handler_exists, _get_handler, _rm_cage_from_handler, _rm_grate_from_handler,
     copy_handler_table_to_cage_impl, print_handler_table, register_handler_impl,
 };
+use crate::perf;
 use crate::threei_const;
 
 pub const EXIT_SYSCALL: u64 = 60; // exit syscall number. Public for tests.
@@ -201,20 +202,30 @@ fn _call_grate_func(
     arg6: u64,
     arg6_cageid: u64,
 ) -> Option<i32> {
-    let runtimeid = match get_cage_runtime(grateid) {
-        Some(r) => r,
-        None => panic!(
-            "[3i|_call_grate_func] grate runtime not found! grateid: {}",
-            grateid
-        ),
-    };
+    #[cfg(feature = "lind_perf")]
+    lind_perf::scope!(perf::enabled::CALL_GRATE_FUNC);
 
-    let trampoline = match get_runtime_trampoline(runtimeid) {
-        Some(f) => f,
-        None => panic!(
-            "[3i|_call_grate_func] grate trampoline not found! runtimeid: {}",
-            runtimeid
-        ),
+    let (_runtimeid, trampoline) = {
+        #[cfg(feature = "lind_perf")]
+        let _runtime_lookup_scope =
+            perf::enabled::CALL_GRATE_FUNC_GET_RUNTIME_TRAMPOLINE.scope();
+
+        let runtimeid = match get_cage_runtime(grateid) {
+            Some(r) => r,
+            None => panic!(
+                "[3i|_call_grate_func] grate runtime not found! grateid: {}",
+                grateid
+            ),
+        };
+
+        let trampoline = match get_runtime_trampoline(runtimeid) {
+            Some(f) => f,
+            None => panic!(
+                "[3i|_call_grate_func] grate trampoline not found! runtimeid: {}",
+                runtimeid
+            ),
+        };
+        (runtimeid, trampoline)
     };
 
     let rc = (trampoline)(
@@ -414,6 +425,9 @@ pub fn make_syscall(
     arg6: u64,
     arg6_cageid: u64,
 ) -> i32 {
+    #[cfg(feature = "lind_perf")]
+    lind_perf::scope!(perf::enabled::MAKE_SYSCALL);
+
     // Return error if the target cage/grate is exiting. We need to add this check beforehead, because make_syscall will also
     // contain cases that can directly redirect a syscall when self_cageid == target_id, which will bypass the handlertable check
     if EXITING_TABLE.contains(&target_cageid) && syscall_num != EXIT_SYSCALL {
@@ -423,6 +437,9 @@ pub fn make_syscall(
     // TODO:
     // if there's a better to handle
     // now if only one syscall in cage has been registered, then every call of that cage will check (extra overhead)
+    #[cfg(feature = "lind_perf")]
+    let _check_handler_scope = perf::enabled::MAKE_SYSCALL_CHECK_HANDLER_TABLE.scope();
+
     if _check_cage_handler_exists(self_cageid) {
         if let Some((in_grate_fn_ptr_u64, grateid)) = _get_handler(self_cageid, syscall_num) {
             // RawPOSIX special case: directly call the function pointer

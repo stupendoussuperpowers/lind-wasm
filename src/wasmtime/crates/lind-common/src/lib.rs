@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+pub mod perf;
+
 use anyhow::Result;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -53,6 +55,9 @@ pub fn add_to_linker<
               arg6: u64,
               arg6cageid: u64|
               -> i32 {
+            #[cfg(feature = "lind_perf")]
+            lind_perf::scope!(perf::enabled::ADD_TO_LINKER_MAKE_SYSCALL);
+
             // TODO:
             // 1. add a signal check here as Linux also has a signal check when transition from kernel to userspace
             // However, Asyncify management in this function should be carefully rethinking if adding signal check here

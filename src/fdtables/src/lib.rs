@@ -114,6 +114,7 @@
 
 // This includes the specific implementation of the algorithm chosen.
 include!("current_impl");
+pub mod perf;
 
 // This includes general constants and definitions for things that are
 // needed everywhere, like FDTableEntry.  I use the * import here to flatten

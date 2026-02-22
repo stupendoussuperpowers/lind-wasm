@@ -3,6 +3,7 @@
 //      Static DashMap.  Let's see if having the FDTableEntries be a static
 //      array is any faster...
 
+use crate::perf;
 use crate::threei;
 
 use dashmap::DashMap;
@@ -393,6 +394,8 @@ lazy_static! {
 
 #[doc = include_str!("../docs/close_virtualfd.md")]
 pub fn close_virtualfd(cageid:u64, virtfd:u64) -> Result<(),threei::RetVal> {
+    #[cfg(feature = "lind_perf")]
+    lind_perf::scope!(perf::enabled::CLOSE_VIRTUALFD);
 
     // Below condition checks if the virtualfd is out of bounds and if yes it throws an error
     // Note that this assumes that all virtualfd numbers returned < FD_PER_PROCESS_MAX 

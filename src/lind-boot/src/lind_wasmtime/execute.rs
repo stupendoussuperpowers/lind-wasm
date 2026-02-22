@@ -1,4 +1,4 @@
-use crate::{cli::CliOptions, lind_wasmtime::host::HostCtx, lind_wasmtime::trampoline::*};
+use crate::{cli::CliOptions, lind_wasmtime::host::HostCtx, lind_wasmtime::trampoline::*, perf};
 use anyhow::{Context, Result, anyhow, bail};
 use cage::signal::{lind_signal_init, signal_may_trigger};
 use cfg_if::cfg_if;
@@ -375,6 +375,9 @@ fn load_main_module(
     cageid: u64,
     args: &[String],
 ) -> Result<Vec<Val>> {
+    #[cfg(feature = "lind_perf")]
+    let _perf_scope = perf::enabled::LOAD_MAIN_MODULE.scope();
+
     // todo:
     // I don't setup `epoch_handler` since it seems not being used by our previous implementation.
     // Not sure if this is related to our thread exit problem
@@ -517,6 +520,9 @@ pub fn precompile_module(cli: &CliOptions) -> Result<()> {
 /// If the file is a precompiled module it is deserialized directly (skipping
 /// compilation). Otherwise it is compiled from source via `Module::from_file`.
 fn read_wasm_or_cwasm(engine: &Engine, path: &Path) -> Result<Module> {
+    #[cfg(feature = "lind_perf")]
+    let _perf_scope = perf::enabled::READ_WASM_OR_CWASM.scope();
+
     if let Some(Precompiled::Module) = engine
         .detect_precompiled_file(path)
         .context("failed to detect precompiled module")?
@@ -531,6 +537,9 @@ fn read_wasm_or_cwasm(engine: &Engine, path: &Path) -> Result<Module> {
 /// This function takes a Wasm function (Func) and a list of string arguments, parses the
 /// arguments into Wasm values based on expected types (ValType), and invokes the function
 fn invoke_func(store: &mut Store<HostCtx>, func: Func, args: &[String]) -> Result<Vec<Val>> {
+    #[cfg(feature = "lind_perf")]
+    let _perf_scope = perf::enabled::INVOKE_FUNC.scope();
+
     let ty = func.ty(&store);
     if ty.params().len() > 0 {
         eprintln!(
