@@ -54,6 +54,16 @@ pub struct CliOptions {
     #[cfg(feature = "lind_perf")]
     #[arg(long, value_name = "SOURCE")]
     pub perf_source: Option<String>,
+
+    /// Enable exactly one counter by name (requires `lind_perf` feature)
+    #[cfg(feature = "lind_perf")]
+    #[arg(long, value_name = "COUNTER_NAME")]
+    pub perf_only: Option<String>,
+
+    /// Run once per counter (re-execs lind-boot) and prints a report each run (requires `lind_perf` feature)
+    #[cfg(feature = "lind_perf")]
+    #[arg(long)]
+    pub perf_sweep: bool,
 }
 
 pub fn parse_env_var(s: &str) -> Result<(String, Option<String>), String> {

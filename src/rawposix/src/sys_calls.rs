@@ -805,7 +805,7 @@ pub extern "C" fn geteuid_syscall(
     arg6_cageid: u64,
 ) -> i32 {
     #[cfg(feature = "lind_perf")]
-    lind_perf::scope!(perf::enabled::GETEUID_SYSCALL);
+    let _geteuid_scope = perf::enabled::GETEUID_SYSCALL.scope();
 
     // Validate that each extra argument is unused.
     if !(sc_unusedarg(arg1, arg1_cageid)
@@ -821,7 +821,12 @@ pub extern "C" fn geteuid_syscall(
         );
     }
 
-    (unsafe { libc::geteuid() }) as i32
+    let ret = (unsafe { libc::geteuid() }) as i32;
+
+    #[cfg(feature = "lind_perf")]
+    std::hint::black_box(&_geteuid_scope);
+
+    ret
 }
 
 /// Reference to Linux: https://man7.org/linux/man-pages/man2/sigaction.2.html

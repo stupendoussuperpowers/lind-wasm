@@ -46,7 +46,7 @@ pub extern "C" fn grate_callback_trampoline(
     arg6cageid: u64,
 ) -> i32 {
     #[cfg(feature = "lind_perf")]
-    lind_perf::scope!(perf::enabled::GRATE_CALLBACK_TRAMPOLINE);
+    let _trampoline_scope = perf::enabled::GRATE_CALLBACK_TRAMPOLINE.scope();
 
     #[cfg(feature = "lind_perf")]
     let _get_vmctx_scope = perf::enabled::TRAMPOLINE_GET_VMCTX.scope();
@@ -134,6 +134,8 @@ pub extern "C" fn grate_callback_trampoline(
     };
     // Push the vmctx back to the global pool
     set_vmctx(cageid, vmctx_wrapper);
+    #[cfg(feature = "lind_perf")]
+    std::hint::black_box(&_trampoline_scope);
     grate_ret
 }
 

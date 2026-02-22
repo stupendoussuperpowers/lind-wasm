@@ -203,49 +203,60 @@ fn _call_grate_func(
     arg6_cageid: u64,
 ) -> Option<i32> {
     #[cfg(feature = "lind_perf")]
-    lind_perf::scope!(perf::enabled::CALL_GRATE_FUNC);
+    let _call_grate_scope = perf::enabled::CALL_GRATE_FUNC.scope();
 
-    let (_runtimeid, trampoline) = {
-        #[cfg(feature = "lind_perf")]
-        let _runtime_lookup_scope =
-            perf::enabled::CALL_GRATE_FUNC_GET_RUNTIME_TRAMPOLINE.scope();
+    let ret = (|| {
+        let (_runtimeid, trampoline) = {
+            #[cfg(feature = "lind_perf")]
+            let _runtime_lookup_scope =
+                perf::enabled::CALL_GRATE_FUNC_GET_RUNTIME_TRAMPOLINE.scope();
 
-        let runtimeid = match get_cage_runtime(grateid) {
-            Some(r) => r,
-            None => panic!(
-                "[3i|_call_grate_func] grate runtime not found! grateid: {}",
-                grateid
-            ),
+            let runtimeid = match get_cage_runtime(grateid) {
+                Some(r) => r,
+                None => panic!(
+                    "[3i|_call_grate_func] grate runtime not found! grateid: {}",
+                    grateid
+                ),
+            };
+
+            let trampoline = match get_runtime_trampoline(runtimeid) {
+                Some(f) => f,
+                None => panic!(
+                    "[3i|_call_grate_func] grate trampoline not found! runtimeid: {}",
+                    runtimeid
+                ),
+            };
+
+            #[cfg(feature = "lind_perf")]
+            std::hint::black_box(&_runtime_lookup_scope);
+
+            (runtimeid, trampoline)
         };
 
-        let trampoline = match get_runtime_trampoline(runtimeid) {
-            Some(f) => f,
-            None => panic!(
-                "[3i|_call_grate_func] grate trampoline not found! runtimeid: {}",
-                runtimeid
-            ),
-        };
-        (runtimeid, trampoline)
-    };
+        let rc = (trampoline)(
+            in_grate_fn_ptr_u64,
+            grateid,
+            arg1,
+            arg1_cageid,
+            arg2,
+            arg2_cageid,
+            arg3,
+            arg3_cageid,
+            arg4,
+            arg4_cageid,
+            arg5,
+            arg5_cageid,
+            arg6,
+            arg6_cageid,
+        );
 
-    let rc = (trampoline)(
-        in_grate_fn_ptr_u64,
-        grateid,
-        arg1,
-        arg1_cageid,
-        arg2,
-        arg2_cageid,
-        arg3,
-        arg3_cageid,
-        arg4,
-        arg4_cageid,
-        arg5,
-        arg5_cageid,
-        arg6,
-        arg6_cageid,
-    );
+        Some(rc)
+    })();
 
-    Some(rc)
+    #[cfg(feature = "lind_perf")]
+    std::hint::black_box(&_call_grate_scope);
+
+    ret
 }
 
 /// EXITING_TABLE:
@@ -426,22 +437,36 @@ pub fn make_syscall(
     arg6_cageid: u64,
 ) -> i32 {
     #[cfg(feature = "lind_perf")]
-    lind_perf::scope!(perf::enabled::MAKE_SYSCALL);
+    let _make_syscall_scope = perf::enabled::MAKE_SYSCALL.scope();
 
-    // Return error if the target cage/grate is exiting. We need to add this check beforehead, because make_syscall will also
-    // contain cases that can directly redirect a syscall when self_cageid == target_id, which will bypass the handlertable check
-    if EXITING_TABLE.contains(&target_cageid) && syscall_num != EXIT_SYSCALL {
-        return threei_const::ELINDESRCH as i32;
-    }
+    let ret = (|| {
+        // Return error if the target cage/grate is exiting. We need to add this check beforehead, because make_syscall will also
+        // contain cases that can directly redirect a syscall when self_cageid == target_id, which will bypass the handlertable check
+        if EXITING_TABLE.contains(&target_cageid) && syscall_num != EXIT_SYSCALL {
+            return threei_const::ELINDESRCH as i32;
+        }
 
-    // TODO:
-    // if there's a better to handle
-    // now if only one syscall in cage has been registered, then every call of that cage will check (extra overhead)
-    #[cfg(feature = "lind_perf")]
-    let _check_handler_scope = perf::enabled::MAKE_SYSCALL_CHECK_HANDLER_TABLE.scope();
+        // TODO:
+        // if there's a better to handle
+        // now if only one syscall in cage has been registered, then every call of that cage will check (extra overhead)
+        let handler = {
+            #[cfg(feature = "lind_perf")]
+            let _check_handler_scope = perf::enabled::MAKE_SYSCALL_CHECK_HANDLER_TABLE.scope();
 
-    if _check_cage_handler_exists(self_cageid) {
-        if let Some((in_grate_fn_ptr_u64, grateid)) = _get_handler(self_cageid, syscall_num) {
+            let has_handlers = _check_cage_handler_exists(self_cageid);
+            let handler = if has_handlers {
+                _get_handler(self_cageid, syscall_num)
+            } else {
+                None
+            };
+
+            #[cfg(feature = "lind_perf")]
+            std::hint::black_box(&_check_handler_scope);
+
+            handler
+        };
+
+        if let Some((in_grate_fn_ptr_u64, grateid)) = handler {
             // RawPOSIX special case: directly call the function pointer
             if grateid == lind_platform_const::RAWPOSIX_CAGEID
                 || grateid == lind_platform_const::WASMTIME_CAGEID
@@ -517,14 +542,19 @@ pub fn make_syscall(
                 );
             }
         }
-    }
 
-    panic!(
-        "[3i|make_syscall] syscall number {} not found in handler table for cage {}, targetcage {}!",
-        syscall_num,
-        self_cageid,
-        target_cageid,
-    );
+        panic!(
+            "[3i|make_syscall] syscall number {} not found in handler table for cage {}, targetcage {}!",
+            syscall_num,
+            self_cageid,
+            target_cageid,
+        );
+    })();
+
+    #[cfg(feature = "lind_perf")]
+    std::hint::black_box(&_make_syscall_scope);
+
+    ret
 }
 
 /***************************** trigger_harsh_cage_exit & harsh_cage_exit *****************************/

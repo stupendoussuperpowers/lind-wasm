@@ -209,7 +209,7 @@ pub extern "C" fn close_syscall(
     arg6_cageid: u64,
 ) -> i32 {
     #[cfg(feature = "lind_perf")]
-    lind_perf::scope!(perf::enabled::CLOSE_SYSCALL);
+    let _close_scope = perf::enabled::CLOSE_SYSCALL.scope();
 
     if !(sc_unusedarg(arg2, arg2_cageid)
         && sc_unusedarg(arg3, arg3_cageid)
@@ -235,6 +235,9 @@ pub extern "C" fn close_syscall(
             }
         }
     }
+
+    #[cfg(feature = "lind_perf")]
+    std::hint::black_box(&_close_scope);
 }
 
 /// Reference to Linux: https://man7.org/linux/man-pages/man2/futex.2.html
