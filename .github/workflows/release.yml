@@ -1,39 +1,41 @@
-name: Test and release on Docker Hub
+name: Release on Docker Hub
 
 on:
   workflow_dispatch:
-  schedule:
-  - cron: "0 8 1 * *"
+  push:
+    branches: [main]
+
+# Serialize releases on the same ref.
+# Do NOT cancel in-progress runs: a cancelled run could abort a push and leave Docker Hub in a partial state.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 permissions: {}
 
 jobs:
-  docker:
+  # Release job: build the 'release' image and publish to Docker Hub.
+  release:
+    permissions:
+      contents: read
     runs-on: ubuntu-22.04
+    environment: dockerhub
     steps:
       - name: Login to Docker Hub
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
           username: securesystemslab
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
-
-      # Build 'test' stage (default) to run tests
-      - name: Test
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
-        with:
-          platforms: linux/amd64
-          cache-from: type=gha
-          file: Docker/Dockerfile.e2e
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       # Configure Docker release tags:
       # - securesystemslab/lind-wasm:sha-<short commit id>
       # - securesystemslab/lind-wasm:latest
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5.10.0
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
           images: |
             securesystemslab/lind-wasm
@@ -42,13 +44,14 @@ jobs:
           flavor: |
             latest=true
 
-      # Build 'release' stage and push to Dockerhub
+      # Build 'release' stage and push to Docker Hub.
       - name: Release and push
-        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           target: release
           push: true
           platforms: linux/amd64
           cache-from: type=gha
+          cache-to: type=gha,mode=max
           file: Docker/Dockerfile.e2e
           tags: ${{ steps.meta.outputs.tags }}

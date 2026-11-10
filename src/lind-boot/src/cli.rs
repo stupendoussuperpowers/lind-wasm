@@ -1,3 +1,6 @@
+use std::path::PathBuf;
+
+use anyhow::{Result, bail};
 use clap::*;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -6,6 +9,14 @@ pub enum PerfTimer {
     Clock,
     /// Use RDTSC/RDTSCP cycle counter timing.
     Tsc,
+}
+
+fn parse_preloads(s: &str) -> Result<(String, PathBuf)> {
+    let parts: Vec<&str> = s.splitn(2, '=').collect();
+    if parts.len() != 2 {
+        bail!("must contain exactly one equals character ('=')");
+    }
+    Ok((parts[0].into(), parts[1].into()))
 }
 
 #[derive(Debug, Parser, Clone)]
@@ -31,6 +42,19 @@ pub struct CliOptions {
     #[arg(long = "wasmtime-backtrace")]
     pub wasmtime_backtrace: bool,
 
+    /// Enables special handling of fpcast enabled wasm binary, mainly for dynamic loading
+    /// A dynamically compiled wasm binary with fpcast-emu enabled must enable this option
+    #[arg(long = "enable-fpcast")]
+    pub enable_fpcast: bool,
+
+    /// Optional in-memory Wasm module bytes.
+    ///
+    /// This is not parsed from the command line. When present, lind-boot loads
+    /// the main module from these bytes instead of reading `WASM_FILE` from disk.
+    /// `WASM_FILE` is still used as guest argv[0].
+    #[arg(skip)]
+    pub wasm_bytes: Option<Vec<u8>>,
+
     /// First item is WASM file (argv[0]), rest are program args (argv[1..])
     ///
     /// Example:
@@ -47,6 +71,24 @@ pub struct CliOptions {
     /// cause the environment variable `FOO` to be inherited.
     #[arg(long = "env", number_of_values = 1, value_name = "NAME[=VAL]", value_parser = parse_env_var)]
     pub vars: Vec<(String, Option<String>)>,
+
+    /// Load the given WebAssembly module before the main module
+    #[arg(
+        long = "preload",
+        number_of_values = 1,
+        value_name = "NAME=MODULE_PATH",
+        value_parser = parse_preloads,
+    )]
+    pub preloads: Vec<(String, PathBuf)>,
+
+    /// Host thread stack size in bytes for spawned cage/thread processes.
+    /// Defaults to 64 MiB.
+    #[arg(long = "thread-stack-size", default_value_t = 64 * 1024 * 1024)]
+    pub thread_stack_size: usize,
+
+    /// Internal memory reservation for Lind's own use (e.g., GC Heap) in bytes.
+    #[arg(long = "lind-internal-memory-reservation", default_value_t = 10 * 1024 * 1024)]
+    pub lind_internal_memory_reservation: u64,
 
     /// Get performance information for the running module.
     ///

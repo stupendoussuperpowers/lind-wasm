@@ -43,7 +43,6 @@ options.
         - `lind_syscall/lind_syscall.c`
         - `lind_syscall/addr_translation.c`
         - `csu/wasm32/wasi_thread_start.s`
-        - `csu/wasm32/set_stack_pointer.s`
 
     3. Generate sysroot
 
@@ -51,10 +50,11 @@ options.
         along with headers and a pre-built C runtime into a
         sysroot directory structure as required by *Clang*.
 
-4. __Build custom wasmtime__ (see [`make wasmtime`](https://github.com/Lind-Project/lind-wasm/blob/main/Makefile))
+4. __Build the runtime__ (see [`make lind-boot`](https://github.com/Lind-Project/lind-wasm/blob/main/Makefile))
 
-      Builds `src/wasmtime` workspace. Custom dependencies `fdtables`, `RawPOSIX`
-      and `sysdefs` are included in the build automatically.
+      Builds the `src/lind-boot` workspace into `build/lind-boot`. The customized
+      `wasmtime` and the `fdtables`, `RawPOSIX`, `threei` and `sysdefs` crates are
+      included in the build automatically.
 
 
 A customized `wasm-opt` binary is included in the *lind-wasm* repo under
@@ -64,4 +64,4 @@ and can be used as is.
 
 ## Next steps
 
-Automate the [build and run programs](unit-tests.md) with `Docker` and `make`.
+Automate the [build and run programs](testing.md) with `Docker` and `make`.
