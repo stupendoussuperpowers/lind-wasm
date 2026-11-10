@@ -21,7 +21,6 @@ default = ["hashmap"]
 hashmap = []
 dashmap = []
 lind-logging = ["sysdefs/lind-logging"]
-lind_perf = ["lind-perf/enabled"]
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"]}

@@ -16,6 +16,7 @@ once_cell = { workspace = true }
 sysdefs = { path = "../sysdefs" }
 anyhow = { version = "1.0.22", default-features = false }
 threei = { path = "../threei" }
+lind-perf = { path = "../lind-perf" }
 lazy_static = "1.4"
 dashmap = { version = "6" }
 

@@ -17,7 +17,6 @@ scripts/object_lists_final/
 e2e_status
 reports/
 report.html
-results.json
 
 **/*.so
 

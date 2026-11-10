@@ -4,7 +4,7 @@ use crate::lind_wasmtime::host::{
     unregister_grate_handler,
 };
 use crate::{cli::CliOptions, lind_wasmtime::host::HostCtx, lind_wasmtime::trampoline::*};
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use cage::signal::{lind_signal_init, signal_may_trigger};
 use cfg_if::cfg_if;
 use std::os::unix::fs::MetadataExt;

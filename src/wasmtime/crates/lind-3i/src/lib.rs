@@ -527,6 +527,7 @@ impl<T: 'static> GrateHandler<T> {
     /// request as an active in-flight call, rejecting it if shutdown has begun,
     /// and then dispatches the request according to the handler’s configured
     /// concurrency mode.
+    #[lind_perf::timed(name = "lind_3i::GrateHandler::submit")]
     pub fn submit(&self, req: GrateRequest) -> anyhow::Result<i32> {
         let _active_guard = ActiveCallGuard::new(self)?;
 
@@ -619,6 +620,7 @@ impl<T: 'static> GrateWorker<T> {
             anyhow::anyhow!("no pass_fptr_func found in worker {}", self.worker_id)
         })?;
 
+        let wasm_call = lind_perf::scope!("lind_3i::grate_wasm_call");
         let ret = func
             .call(
                 &mut self.store,
@@ -646,6 +648,7 @@ impl<T: 'static> GrateWorker<T> {
                     e
                 )
             })?;
+        drop(wasm_call);
 
         #[cfg(feature = "debug-grate-calls")]
         println!(

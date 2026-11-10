@@ -29,4 +29,3 @@ lind-perf = { path = "../lind-perf" }
 lind_debug = []
 lind-logging = ["sysdefs/lind-logging"]
 asyncify-setjmp = ["wasmtime-lind-multi-process/asyncify-setjmp"]
-lind_perf = ["lind-perf/enabled", "threei/lind_perf", "rawposix/lind_perf"]

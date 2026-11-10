@@ -112,6 +112,10 @@ fn add_syscall_to_linker<
               arg6: u64,
               arg6cageid: u64|
               -> wasmtime::Result<i32> {
+            // Whole host-side cost of one guest syscall: wasm->host transition excluded, everything
+            // from here to the return into wasm included. One bucket per syscall number.
+            let _lind_perf = lind_perf::scope!("lind_common::syscall_entry", key = call_number);
+
             // TODO:
             // 1. add a signal check here as Linux also has a signal check when transition from kernel to userspace
             // However, Asyncify management in this function should be carefully rethinking if adding signal check here

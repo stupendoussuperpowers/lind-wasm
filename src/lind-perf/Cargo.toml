@@ -1,11 +1,18 @@
 [package]
 name = "lind-perf"
-version = "0.1.0"
-edition = "2024"
+version = "0.2.0"
+edition = "2021"
+description = "Zero-plumbing scope timers: annotate a function, flip one feature, get per-callsite numbers."
 
 [features]
 default = []
+# Compile timers in. Without this every macro expands to nothing.
+#
+# Because Cargo unifies features across one build graph, only the final binary
+# (lind-boot) needs to turn this on. Library crates (threei, rawposix, ...) just
+# depend on lind-perf normally and never forward a feature.
 enabled = []
 
 [dependencies]
+lind-perf-macros = { path = "macros" }
 libc = "0.2"

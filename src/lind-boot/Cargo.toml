@@ -19,6 +19,9 @@ lind-logging = [
     "wasmtime/lind-logging",
 ]
 debug-grate-calls = ["wasmtime-lind-3i/debug-grate-calls"]
+# Compile in lind-perf timers (#[lind_perf::timed] / lind_perf::scope! callsites in any crate).
+# Cargo unifies features across the build, so no other crate needs to forward this.
+lind_perf = ["lind-perf/enabled"]
 # Use the old asyncify-unwind/rewind based setjmp/longjmp instead of the default wasm-EH
 # based one. Requires glibc and user programs compiled without -fwasm-exceptions
 # (set LIND_ASYNCIFY_SETJMP=1 when running the build scripts).
@@ -28,12 +31,6 @@ fdtables-dashmaparray = ["rawposix/fdtables-dashmaparray"]
 fdtables-dashmapvec = ["rawposix/fdtables-dashmapvec"]
 fdtables-muthashmax = ["rawposix/fdtables-muthashmax"]
 fdtables-vanilla = ["rawposix/fdtables-vanilla"]
-lind_perf = [
-    "lind-perf/enabled",
-    "threei/lind_perf",
-    "rawposix/lind_perf",
-    "wasmtime-lind-common/lind_perf",
-]
 
 [dependencies]
 wasmtime-lind-common = { path = "../wasmtime/crates/lind-common" }
@@ -46,9 +43,9 @@ threei = { path = "../wasmtime/crates/threei" }
 sysdefs = { path = "../wasmtime/crates/sysdefs" }
 typemap = { path = "../wasmtime/crates/typemap" }
 wasmtime-lind-3i = { path = "../wasmtime/crates/lind-3i" }
+lind-perf = { path = "../wasmtime/crates/lind-perf" }
 wasmtime = { path = "../wasmtime/crates/wasmtime", features = ["cranelift", "pooling-allocator", "gc-null", "threads", "demangle", "addr2line", "cache", "anyhow"], default-features = false }
 wasmtime-wasi = { version = "23.0.0", features = ["preview1"] , default-features = false }
-lind-perf = { path = "../wasmtime/crates/lind-perf" }
 
 anyhow = { version = "1.0.66", default-features = false }
 clap = { version = "4", features = ["derive"] }

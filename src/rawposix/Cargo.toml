@@ -30,6 +30,5 @@ fdtables-dashmaparray = ["fdtables/dashmaparray"]
 fdtables-dashmapvec = ["fdtables/dashmapvec"]
 fdtables-muthashmax = ["fdtables/muthashmax"]
 fdtables-vanilla = ["fdtables/vanilla"]
-lind_perf = ["lind-perf/enabled"]
 
 [dev-dependencies]

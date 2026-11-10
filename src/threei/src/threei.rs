@@ -224,6 +224,7 @@ pub fn remove_cage_runtime(cageid: u64) -> Option<u64> {
 ///
 /// In the current implementation, the runtime-side execution logic is provided by Wasmtime. The
 /// trampoline registered for the Wasmtime runtime is `grate_callback_trampoline` in [wasmtime/run.rs].
+#[lind_perf::timed]
 fn _call_grate_func(
     grateid: u64,
     in_grate_fn_ptr_u64: u64,
@@ -437,6 +438,7 @@ pub fn copy_handler_table_to_cage(
 /// is an exit variant or the caller is the target itself), or if the destination grate is
 /// already dead.
 /// - Panics if no handler is registered for (self_cageid, syscall_num).
+#[lind_perf::timed(key = syscall_num)]
 pub fn make_syscall(
     self_cageid: u64, // is required to get the cage instance
     syscall_num: u64,
@@ -492,6 +494,7 @@ pub fn make_syscall(
             }
             let func: RawCallFunc =
                 unsafe { std::mem::transmute::<u64, RawCallFunc>(in_grate_fn_ptr_u64) };
+            let _dispatch = lind_perf::scope!("threei::rawposix_dispatch", key = syscall_num);
             return func(
                 target_cageid,
                 arg1,
