@@ -885,7 +885,6 @@ pub extern "C" fn getuid_syscall(
 ///
 /// ## Returns
 /// These functions are always successful and never modify errno.
-#[lind_perf::timed]
 pub extern "C" fn geteuid_syscall(
     cageid: u64,
     arg1: u64,

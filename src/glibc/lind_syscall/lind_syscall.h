@@ -49,4 +49,16 @@ int copy_data_between_cages(uint64_t thiscage, uint64_t targetcage,
     uint64_t len, uint64_t copytype);
 
 int copy_handler_table_to_cage(uint64_t srccage, uint64_t targetcage);
+
+/*
+ * Benchmarking syscalls (numbers 2001-2999). Only these are timed by lind-perf.
+ *
+ *   bm_grate()    - no-op in RawPOSIX; register a grate handler for BM_GRATE to
+ *                   time the grate round trip.
+ *   bm_rawposix() - resolved through the host kernel (behaves like geteuid()).
+ *   bm_fdtables() - resolved in fdtables without the kernel (behaves like close(-1)).
+ */
+int bm_grate(void);
+int bm_rawposix(void);
+int bm_fdtables(void);
 #endif // _LIND_SYSCALL_H

@@ -71,12 +71,7 @@ impl Counter {
                 start: read_start(kind),
             }
         } else {
-            Guard {
-                counter: None,
-                key: 0,
-                kind: TimerKind::Clock,
-                start: 0,
-            }
+            Guard::off()
         }
     }
 
@@ -126,6 +121,20 @@ pub struct Guard {
     key: u64,
     kind: TimerKind,
     start: u64,
+}
+
+impl Guard {
+    /// A guard that records nothing.
+    #[doc(hidden)]
+    #[inline(always)]
+    pub fn off() -> Guard {
+        Guard {
+            counter: None,
+            key: 0,
+            kind: TimerKind::Clock,
+            start: 0,
+        }
+    }
 }
 
 impl Drop for Guard {
@@ -299,7 +308,7 @@ pub fn report() {
             cfg.only.join(",")
         },
     );
-    let _ = writeln!(buf, "name\tkey\tcalls\ttotal\tavg");
+    let _ = writeln!(buf, "{:64}\tkey\tcalls\t{:>10}\tavg", "name", "total");
 
     // (name, sort key, label, calls, total)
     let mut rows: Vec<(&str, usize, String, u64, u64)> = Vec::new();
@@ -327,7 +336,7 @@ pub fn report() {
     rows.sort_by(|a, b| a.0.cmp(b.0).then(a.1.cmp(&b.1)));
     for (name, _, key, calls, total) in rows {
         let avg = if calls == 0 { 0 } else { total / calls };
-        let _ = writeln!(buf, "{name}\t{key}\t{calls}\t{total}\t{avg}");
+        let _ = writeln!(buf, "{name:64}\t{key}\t{calls}\t{total:10}\t{avg}");
     }
 
     match &cfg.out {

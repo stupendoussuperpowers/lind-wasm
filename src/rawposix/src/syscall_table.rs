@@ -3,6 +3,7 @@
 //! https://github.com/torvalds/linux/blob/v6.16-rc1/arch/x86/entry/syscalls/syscall_64.tbl
 //! https://filippo.io/linux-syscall-table/
 //! Keep these in sync with glibc's lind_syscall_num.h
+use super::bench_calls::{bm_fdtables_syscall, bm_grate_syscall, bm_rawposix_syscall};
 use super::fs_calls::{
     access_syscall, brk_syscall, chdir_syscall, chmod_syscall, chown_syscall,
     clock_gettime_syscall, close_syscall, copy_file_range_syscall, dup2_syscall, dup3_syscall,
@@ -187,5 +188,14 @@ pub const SYSCALL_TABLE: &[(u64, RawCallFunc)] = &[
     (
         syscall_const::COPY_FILE_RANGE_SYSCALL as u64,
         copy_file_range_syscall,
+    ),
+    (syscall_const::BM_GRATE_SYSCALL as u64, bm_grate_syscall),
+    (
+        syscall_const::BM_RAWPOSIX_SYSCALL as u64,
+        bm_rawposix_syscall,
+    ),
+    (
+        syscall_const::BM_FDTABLES_SYSCALL as u64,
+        bm_fdtables_syscall,
     ),
 ];

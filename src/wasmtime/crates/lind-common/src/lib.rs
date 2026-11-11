@@ -28,7 +28,7 @@ use wasmtime_lind_multi_process::{LindHost, get_memory_base, get_memory_base_and
 // for functions that require a fixed number of parameters but do not utilize
 // all of them.
 use sysdefs::constants::syscall_const::{
-    CLONE_SYSCALL, EXEC_SYSCALL, EXIT_GROUP_SYSCALL, EXIT_SYSCALL,
+    CLONE_SYSCALL, EXEC_SYSCALL, EXIT_GROUP_SYSCALL, EXIT_SYSCALL, is_bm_syscall,
 };
 
 /// Stores argv and environment variables for the guest program. During glibc's
@@ -113,8 +113,13 @@ fn add_syscall_to_linker<
               arg6cageid: u64|
               -> wasmtime::Result<i32> {
             // Whole host-side cost of one guest syscall: wasm->host transition excluded, everything
-            // from here to the return into wasm included. One bucket per syscall number.
-            let _lind_perf = lind_perf::scope!("lind_common::syscall_entry", key = call_number);
+            // from here to the return into wasm included. One bucket per syscall number. Only
+            // benchmarking syscalls (2001-2999) are timed.
+            let _lind_perf = lind_perf::scope!(
+                "lind_common::syscall_entry",
+                key = call_number,
+                cond = is_bm_syscall(call_number as u64)
+            );
 
             // TODO:
             // 1. add a signal check here as Linux also has a signal check when transition from kernel to userspace

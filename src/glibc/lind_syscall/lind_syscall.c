@@ -190,3 +190,49 @@ int copy_handler_table_to_cage(uint64_t thiscage, uint64_t targetcage)
         TRANSLATE_ERRNO_OFF /* do not translate errno: return the raw result */
     );
 }
+
+/*
+ * Benchmarking syscalls (2001-2999).
+ *
+ * These exist only to measure the cost of the syscall path. lind-perf gates
+ * its syscall-path timers on this number range, so ordinary syscalls are not
+ * timed. None of them take arguments, so each invocation does the same work.
+ */
+
+// No work in RawPOSIX: measures the bare dispatch path. A grate can register
+// a handler for BM_GRATE to measure the grate round trip instead.
+int
+bm_grate (void)
+{
+  uint64_t __self = __lind_cageid;
+  return make_threei_call (BM_GRATE, NOTUSED, __self, __self,
+			   NOTUSED, __self, NOTUSED, __self,
+			   NOTUSED, __self, NOTUSED, __self,
+			   NOTUSED, __self, NOTUSED, __self,
+			   TRANSLATE_ERRNO_ON);
+}
+
+// Resolved through the host kernel: mirrors rawposix geteuid_syscall().
+int
+bm_rawposix (void)
+{
+  uint64_t __self = __lind_cageid;
+  return make_threei_call (BM_RAWPOSIX, NOTUSED, __self, __self,
+			   NOTUSED, __self, NOTUSED, __self,
+			   NOTUSED, __self, NOTUSED, __self,
+			   NOTUSED, __self, NOTUSED, __self,
+			   TRANSLATE_ERRNO_ON);
+}
+
+// Resolved in fdtables without the kernel: mirrors close(-1). The fd is
+// hardcoded so the call always fails with EBADF before reaching the kernel.
+int
+bm_fdtables (void)
+{
+  uint64_t __self = __lind_cageid;
+  return make_threei_call (BM_FDTABLES, NOTUSED, __self, __self,
+			   (uint64_t) -1, __self, NOTUSED, __self,
+			   NOTUSED, __self, NOTUSED, __self,
+			   NOTUSED, __self, NOTUSED, __self,
+			   TRANSLATE_ERRNO_ON);
+}

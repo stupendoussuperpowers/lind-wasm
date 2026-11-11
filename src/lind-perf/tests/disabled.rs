@@ -6,12 +6,23 @@ fn keyed(n: u64) -> u64 {
     n + 1
 }
 
+fn never() -> bool {
+    panic!("`cond` must not be evaluated when lind-perf is disabled")
+}
+
+#[lind_perf::timed(key = n, cond = never())]
+fn conditional(n: u64) -> u64 {
+    n
+}
+
 #[test]
 fn compiles_to_nothing() {
     assert!(!lind_perf::ENABLED);
     assert_eq!(keyed(1), 2);
     let g = lind_perf::scope!("x", key = 5);
     drop(g);
+    assert_eq!(conditional(3), 3);
+    drop(lind_perf::scope!("z", cond = never()));
     assert_eq!(std::mem::size_of_val(&lind_perf::scope!("y")), 0);
     lind_perf::init();
     lind_perf::report();

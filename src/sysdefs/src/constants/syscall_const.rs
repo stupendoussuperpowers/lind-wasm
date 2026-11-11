@@ -122,3 +122,18 @@ pub const GETRANDOM_SYSCALL: i32 = 318;
 pub const COPY_FILE_RANGE_SYSCALL: i32 = 326;
 pub const STATX_SYSCALL: i32 = 332;
 pub const RT_SIGSUSPEND_SYSCALL: i32 = 130;
+
+// Lind benchmarking syscalls. lind-perf only times syscall paths for numbers in
+// BM_SYSCALL_FIRST..=BM_SYSCALL_LAST. Keep in sync with glibc's lind_syscall_num.h.
+pub const BM_GRATE_SYSCALL: i32 = 2001;
+pub const BM_RAWPOSIX_SYSCALL: i32 = 2002;
+pub const BM_FDTABLES_SYSCALL: i32 = 2003;
+
+pub const BM_SYSCALL_FIRST: u64 = 2001;
+pub const BM_SYSCALL_LAST: u64 = 2999;
+
+/// True for syscall numbers reserved for benchmarking.
+#[inline(always)]
+pub const fn is_bm_syscall(num: u64) -> bool {
+    num >= BM_SYSCALL_FIRST && num <= BM_SYSCALL_LAST
+}

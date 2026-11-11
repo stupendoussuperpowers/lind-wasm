@@ -55,11 +55,19 @@ pub mod __private {
 
 /// Start timing until the returned guard is dropped.
 ///
-/// `scope!(name)` or `scope!(name, key = expr)`. `name` must be a `&'static str` constant
-/// expression. `key` is cast `as u64` and selects a per-key bucket (for example a syscall number).
+/// `scope!(name)`, `scope!(name, key = expr)`, `scope!(name, cond = expr)` or
+/// `scope!(name, key = expr, cond = expr)`. `name` must be a `&'static str` constant expression.
+/// `key` is cast `as u64` and selects a per-key bucket (for example a syscall number). When `cond`
+/// is false the call is not timed and the counter is not touched.
 #[cfg(feature = "enabled")]
 #[macro_export]
 macro_rules! scope {
+    ($name:expr, cond = $cond:expr) => {
+        if $cond { $crate::scope!($name) } else { $crate::Guard::off() }
+    };
+    ($name:expr, key = $key:expr, cond = $cond:expr) => {
+        if $cond { $crate::scope!($name, key = $key) } else { $crate::Guard::off() }
+    };
     ($name:expr) => {{
         static __LIND_PERF_BUCKETS: [$crate::__private::Bucket; 1] =
             [$crate::__private::Bucket::new()];
@@ -85,6 +93,12 @@ macro_rules! scope {
         $crate::Guard
     };
     ($name:expr, key = $key:expr) => {
+        $crate::Guard
+    };
+    ($name:expr, cond = $cond:expr) => {
+        $crate::Guard
+    };
+    ($name:expr, key = $key:expr, cond = $cond:expr) => {
         $crate::Guard
     };
 }

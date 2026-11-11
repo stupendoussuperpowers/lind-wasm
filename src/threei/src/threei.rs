@@ -10,6 +10,7 @@ use std::sync::RwLock;
 use sysdefs::constants::err_const::Errno;
 use sysdefs::constants::fs_const::PAGESIZE;
 use sysdefs::constants::lind_platform_const;
+use sysdefs::constants::syscall_const::is_bm_syscall;
 use sysdefs::lind_log;
 
 use crate::handler_table::{
@@ -224,7 +225,6 @@ pub fn remove_cage_runtime(cageid: u64) -> Option<u64> {
 ///
 /// In the current implementation, the runtime-side execution logic is provided by Wasmtime. The
 /// trampoline registered for the Wasmtime runtime is `grate_callback_trampoline` in [wasmtime/run.rs].
-#[lind_perf::timed]
 fn _call_grate_func(
     grateid: u64,
     in_grate_fn_ptr_u64: u64,
@@ -438,7 +438,7 @@ pub fn copy_handler_table_to_cage(
 /// is an exit variant or the caller is the target itself), or if the destination grate is
 /// already dead.
 /// - Panics if no handler is registered for (self_cageid, syscall_num).
-#[lind_perf::timed(key = syscall_num)]
+#[lind_perf::timed(key = syscall_num, cond = is_bm_syscall(syscall_num))]
 pub fn make_syscall(
     self_cageid: u64, // is required to get the cage instance
     syscall_num: u64,
@@ -494,7 +494,11 @@ pub fn make_syscall(
             }
             let func: RawCallFunc =
                 unsafe { std::mem::transmute::<u64, RawCallFunc>(in_grate_fn_ptr_u64) };
-            let _dispatch = lind_perf::scope!("threei::rawposix_dispatch", key = syscall_num);
+            let _dispatch = lind_perf::scope!(
+                "threei::rawposix_dispatch",
+                key = syscall_num,
+                cond = is_bm_syscall(syscall_num)
+            );
             return func(
                 target_cageid,
                 arg1,
@@ -559,22 +563,29 @@ pub fn make_syscall(
             return -(Errno::ESRCH as i32);
         }
 
-        let grate_result = _call_grate_func(
-            grateid,
-            in_grate_fn_ptr_u64,
-            arg1,
-            arg1_cageid,
-            arg2,
-            arg2_cageid,
-            arg3,
-            arg3_cageid,
-            arg4,
-            arg4_cageid,
-            arg5,
-            arg5_cageid,
-            arg6,
-            arg6_cageid,
-        );
+        let grate_result = {
+            let _grate = lind_perf::scope!(
+                "threei::call_grate_func",
+                key = syscall_num,
+                cond = is_bm_syscall(syscall_num)
+            );
+            _call_grate_func(
+                grateid,
+                in_grate_fn_ptr_u64,
+                arg1,
+                arg1_cageid,
+                arg2,
+                arg2_cageid,
+                arg3,
+                arg3_cageid,
+                arg4,
+                arg4_cageid,
+                arg5,
+                arg5_cageid,
+                arg6,
+                arg6_cageid,
+            )
+        };
 
         // Decrement the in-flight counter now that the dispatch returned.
         with_cage(grateid, |grate| {

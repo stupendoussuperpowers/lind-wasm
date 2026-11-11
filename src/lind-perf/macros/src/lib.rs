@@ -15,10 +15,13 @@ use syn::{parse_macro_input, Expr, ItemFn, LitStr};
 ///
 /// #[lind_perf::timed(name = "custom::name")]
 /// fn bar() {}
+///
+/// #[lind_perf::timed(cond = syscall_num == 107)] // only time calls where this is true
+/// pub fn make_syscall(self_cageid: u64, syscall_num: u64, /* ... */) -> i32 { /* ... */ }
 /// ```
 ///
-/// `key` is any expression convertible with `as u64`, evaluated on entry, so it can name the
-/// function's arguments.
+/// `key` is any expression convertible with `as u64`, `cond` any `bool` expression. Both are
+/// evaluated on entry, so they can name the function's arguments.
 ///
 /// Expands to `let _guard = lind_perf::scope!(...); <original body>`. When lind-perf is built
 /// without its `enabled` feature, `scope!` expands to a zero-sized value and the key expression
@@ -27,6 +30,7 @@ use syn::{parse_macro_input, Expr, ItemFn, LitStr};
 pub fn timed(attr: TokenStream, item: TokenStream) -> TokenStream {
     let mut name: Option<LitStr> = None;
     let mut key: Option<Expr> = None;
+    let mut cond: Option<Expr> = None;
 
     let parser = syn::meta::parser(|meta| {
         if meta.path.is_ident("name") {
@@ -35,8 +39,11 @@ pub fn timed(attr: TokenStream, item: TokenStream) -> TokenStream {
         } else if meta.path.is_ident("key") {
             key = Some(meta.value()?.parse()?);
             Ok(())
+        } else if meta.path.is_ident("cond") {
+            cond = Some(meta.value()?.parse()?);
+            Ok(())
         } else {
-            Err(meta.error("expected `name = \"...\"` or `key = <expr>`"))
+            Err(meta.error("expected `name = \"...\"`, `key = <expr>` or `cond = <bool expr>`"))
         }
     });
     parse_macro_input!(attr with parser);
@@ -64,10 +71,9 @@ pub fn timed(attr: TokenStream, item: TokenStream) -> TokenStream {
         Some(lit) => quote!(#lit),
         None => quote!(::core::concat!(::core::module_path!(), "::", ::core::stringify!(#ident))),
     };
-    let scope = match key {
-        Some(k) => quote!(::lind_perf::scope!(#name, key = #k)),
-        None => quote!(::lind_perf::scope!(#name)),
-    };
+    let key = key.map(|k| quote!(, key = #k));
+    let cond = cond.map(|c| quote!(, cond = #c));
+    let scope = quote!(::lind_perf::scope!(#name #key #cond));
 
     quote!(
         #(#attrs)*

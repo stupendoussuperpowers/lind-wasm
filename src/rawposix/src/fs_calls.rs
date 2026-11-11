@@ -314,7 +314,6 @@ pub extern "C" fn read_syscall(
 /// ## Returns:
 ///     - 0 on success.
 ///     - -1 on error, with errno set to indicate the error (EBADF, EINTR, EIO).
-#[lind_perf::timed]
 pub extern "C" fn close_syscall(
     cageid: u64,
     vfd_arg: u64,

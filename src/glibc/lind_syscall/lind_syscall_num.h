@@ -150,5 +150,11 @@
 #define COPY_DATA_BETWEEN_CAGES_SYSCALL 1002
 #define COPY_HANDLER_TABLE_TO_CAGE_SYSCALL 1003
 
+/* Lind benchmarking syscalls (2001-2999). lind-perf only times syscall paths
+ * for numbers in this range; keep in sync with sysdefs syscall_const.rs. */
+#define BM_GRATE        2001
+#define BM_RAWPOSIX     2002
+#define BM_FDTABLES     2003
+
 #endif /* _LIND_SYSCALL_NUM_H */
  
